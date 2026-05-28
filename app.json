@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Grabb | Phone Grab Tracker",
+    "slug": "habit-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "habittracker",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#F7F8FA"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ibneyousaf.habittracker",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.ibneyousaf.habittracker.widget"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F7F8FA"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "@bacons/apple-targets",
+      "./plugins/withFmtPatch"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "bundleIdentifier": "com.ibneyousaf.habittracker.widget",
+                  "targetName": "widget",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.habittracker"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "025e80d4-9f40-48a6-a802-fc8acd93e21a"
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "habit-tracker-module",
+  "version": "1.0.0",
+  "description": "Native iOS module for syncing widget stats with the Habit Tracker app",
+  "main": "index.ts",
+  "types": "index.ts"
+}
