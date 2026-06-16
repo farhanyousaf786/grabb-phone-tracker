@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 interface Tip {
@@ -19,9 +19,13 @@ import Animated, {
   useSharedValue,
   withSpring,
   withTiming,
+  withSequence,
+  withDelay,
+  withRepeat,
   runOnJS,
-  FadeOutLeft
+  FadeIn
 } from 'react-native-reanimated';
+import { storage } from '@/utils/storage';
 
 interface DailyTipProps {
   tip: Tip;
@@ -32,6 +36,38 @@ export const DailyTip: React.FC<DailyTipProps> = ({ tip, onDismiss }) => {
   const { colors, isDark } = useTheme();
   const translateX = useSharedValue(0);
   const opacity = useSharedValue(1);
+  const [hasSwiped, setHasSwiped] = useState(false);
+
+  useEffect(() => {
+    storage.getHasSwipedTip().then((val) => {
+      setHasSwiped(val);
+      if (!val) {
+        // Pronounced infinite looping animation
+        translateX.value = withDelay(
+          800,
+          withRepeat(
+            withSequence(
+              withTiming(-30, { duration: 400 }),
+              withTiming(30, { duration: 800 }),
+              withTiming(0, { duration: 400 })
+            ),
+            -1, // infinite
+            false
+          )
+        );
+      } else {
+        // Initial subtle hint animation
+        translateX.value = withDelay(
+          800,
+          withSequence(
+            withTiming(-15, { duration: 250 }),
+            withTiming(10, { duration: 200 }),
+            withSpring(0, { damping: 10, stiffness: 100 })
+          )
+        );
+      }
+    });
+  }, []);
 
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
@@ -43,6 +79,7 @@ export const DailyTip: React.FC<DailyTipProps> = ({ tip, onDismiss }) => {
         // Swipe to dismiss
         const direction = event.translationX > 0 ? 1 : -1;
         translateX.value = withTiming(500 * direction, { duration: 200 }, () => {
+          runOnJS(storage.setHasSwipedTip)(true);
           runOnJS(onDismiss)();
         });
       } else {
@@ -73,6 +110,11 @@ export const DailyTip: React.FC<DailyTipProps> = ({ tip, onDismiss }) => {
             <Text style={styles.tipLabel}>TIP OF THE DAY</Text>
             <Text style={styles.tipTitle}>{tip.title}</Text>
             <Text style={styles.tipBody}>{tip.body}</Text>
+            {!hasSwiped && (
+              <Text style={styles.swipeHint}>
+                ← Swipe to remove →
+              </Text>
+            )}
           </View>
         </LinearGradient>
       </Animated.View>
@@ -105,4 +147,5 @@ const styles = StyleSheet.create({
   tipLabel: { fontSize: 10, fontWeight: '900', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 2 },
   tipTitle: { fontSize: 18, fontWeight: '800', color: '#FFFFFF', marginBottom: 6, letterSpacing: -0.5 },
   tipBody: { fontSize: 13, lineHeight: 20, color: 'rgba(255,255,255,0.9)', fontWeight: '500' },
+  swipeHint: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)', marginTop: 12, textAlign: 'center', letterSpacing: 0.5 },
 });

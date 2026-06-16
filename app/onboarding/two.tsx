@@ -1,6 +1,7 @@
 import { Link, router } from 'expo-router';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { storage } from '@/utils/storage';
+import { SubscriptionService } from '@/services/SubscriptionService';
 
 export default function OnboardingTwoScreen() {
   const { height, width } = useWindowDimensions();
@@ -10,6 +11,7 @@ export default function OnboardingTwoScreen() {
 
   async function finishOnboarding() {
     await storage.setOnboardingComplete();
+    await SubscriptionService.startTrialIfNeeded();
     router.replace('/pages/home/home');
   }
 

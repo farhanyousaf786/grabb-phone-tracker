@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExtensionStorage } from '@bacons/apple-targets';
+import HabitTrackerModule from 'habit-tracker-module';
 
 export interface GrabLog {
   id: string;
@@ -57,6 +58,7 @@ const CHECKIN_PREVIEW_KEY = 'habit_tracker_checkin_preview';
 const TODAY_INTENTION_KEY = 'habit_tracker_today_intention';
 const TRACKING_WHY_ENABLED_KEY = 'habit_tracker_tracking_why_enabled';
 const NOTIFICATION_PREFS_KEY = 'habit_tracker_notification_preferences';
+const HAS_SWIPED_TIP_KEY = 'habit_tracker_has_swiped_tip';
 
 const DEFAULT_PLAN_CONFIG: PlanConfig = {
   planType: 'moderate',
@@ -77,20 +79,23 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationPreferences = {
 // Shared App Group storage for widget sync (App → Widget)
 let widgetStore: ExtensionStorage | null = null;
 try {
-  widgetStore = new ExtensionStorage('group.com.ibneyousaf.habittracker.widget');
+  widgetStore = new ExtensionStorage('group.com.jamesonsinger.habittracker.widget');
 } catch (e) {
   // Not available in Expo Go
 }
 
 async function syncWidgetStats() {
-  if (!widgetStore) return;
   try {
     const today = new Date().toISOString().split('T')[0];
     const stats = await storage.getDailyStats(today);
     const limit = await storage.getDailyLimit();
-    widgetStore.set(`grab_count_${today}`, stats.count);
-    widgetStore.set('grab_limit', limit);
-    ExtensionStorage.reloadWidget();
+    if (HabitTrackerModule) {
+      HabitTrackerModule.syncStats(stats.count, limit);
+    } else if (widgetStore) {
+      widgetStore.set(`grab_count_${today}`, stats.count);
+      widgetStore.set('grab_limit', limit);
+      ExtensionStorage.reloadWidget();
+    }
   } catch (e) {
     console.log('Error syncing widget stats:', e);
   }
@@ -335,6 +340,24 @@ export const storage = {
     }
   },
 
+  async setHasSwipedTip(hasSwiped: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem(HAS_SWIPED_TIP_KEY, JSON.stringify(hasSwiped));
+    } catch (error) {
+      console.error('Error setting has swiped tip:', error);
+    }
+  },
+
+  async getHasSwipedTip(): Promise<boolean> {
+    try {
+      const val = await AsyncStorage.getItem(HAS_SWIPED_TIP_KEY);
+      return val ? JSON.parse(val) : false;
+    } catch (error) {
+      console.error('Error getting has swiped tip:', error);
+      return false;
+    }
+  },
+
   async setCalibrationAdopted(val: boolean): Promise<void> {
     try {
       await AsyncStorage.setItem(CALIBRATION_ADOPTED_KEY, JSON.stringify(val));
@@ -553,6 +576,90 @@ export const storage = {
       return data === 'morning' || data === 'evening' ? data : null;
     } catch (error) {
       console.error('Error consuming check-in preview:', error);
+      return null;
+    }
+  },
+
+  // --- Subscription / Trial helpers ---
+
+  async setFirstOpenDate(dateStr: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem('habit_tracker_first_open_date', dateStr);
+    } catch (error) {
+      console.error('Error setting first open date:', error);
+    }
+  },
+
+  async getFirstOpenDate(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem('habit_tracker_first_open_date');
+    } catch (error) {
+      console.error('Error getting first open date:', error);
+      return null;
+    }
+  },
+
+  async setSubscriptionActive(active: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem('habit_tracker_subscription_active', JSON.stringify(active));
+    } catch (error) {
+      console.error('Error setting subscription active:', error);
+    }
+  },
+
+  async getSubscriptionActive(): Promise<boolean> {
+    try {
+      const data = await AsyncStorage.getItem('habit_tracker_subscription_active');
+      return data ? JSON.parse(data) : false;
+    } catch (error) {
+      console.error('Error getting subscription active:', error);
+      return false;
+    }
+  },
+
+  async getTrialDaysRemaining(): Promise<number> {
+    try {
+      const firstOpen = await AsyncStorage.getItem('habit_tracker_first_open_date');
+      if (!firstOpen) return 3;
+      const elapsed = (Date.now() - new Date(firstOpen).getTime()) / (1000 * 60 * 60 * 24);
+      return Math.max(0, 3 - Math.floor(elapsed));
+    } catch (error) {
+      console.error('Error getting trial days:', error);
+      return 3;
+    }
+  },
+
+  async setHasSeenTrialWelcome(seen: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem('habit_tracker_seen_trial_welcome', JSON.stringify(seen));
+    } catch (error) {
+      console.error('Error setting trial welcome seen:', error);
+    }
+  },
+
+  async getHasSeenTrialWelcome(): Promise<boolean> {
+    try {
+      const data = await AsyncStorage.getItem('habit_tracker_seen_trial_welcome');
+      return data ? JSON.parse(data) : false;
+    } catch (error) {
+      console.error('Error getting trial welcome seen:', error);
+      return false;
+    }
+  },
+
+  async setTrialBannerDismissedDate(dateStr: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem('habit_tracker_trial_banner_dismissed', dateStr);
+    } catch (error) {
+      console.error('Error setting trial banner dismissed date:', error);
+    }
+  },
+
+  async getTrialBannerDismissedDate(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem('habit_tracker_trial_banner_dismissed');
+    } catch (error) {
+      console.error('Error getting trial banner dismissed date:', error);
       return null;
     }
   },

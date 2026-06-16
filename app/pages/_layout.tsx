@@ -55,6 +55,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen name="settings/settings" options={{ href: null }} />
+      <Tabs.Screen name="paywall/paywall" options={{ href: null }} />
       <Tabs.Screen name="analytics/analytics" options={{ href: null }} />
       <Tabs.Screen name="profile/profile" options={{ href: null }} />
     </Tabs>

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Alert, View, SafeAreaView, ScrollView, StyleSheet, Modal, Text, Pressable, ActivityIndicator, AppState, Platform } from 'react-native';
 import { ExtensionStorage } from '@bacons/apple-targets';
+import HabitTrackerModule from 'habit-tracker-module';
 import { DAILY_LIMIT_DEFAULT, TIPS, TriggerName, INTENTIONS } from '@/constants/mockData';
 import { storage, GrabLog, FocusBlock } from '@/utils/storage';
 import { NotificationService, NotifType } from '@/services/NotificationService';
@@ -23,6 +24,10 @@ import { NightCheckInModal } from '@/components/home/NightCheckInModal';
 import { StreakTracker } from '@/components/home/StreakTracker';
 
 import { useTheme } from '@/context/ThemeContext';
+import { SubscriptionService } from '@/services/SubscriptionService';
+
+const hasShownExpiredModalThisSession = { value: false };
+const hasShownAutoModalThisSession = { value: false };
 
 export default function HomeScreen() {
   const { colors, isDark } = useTheme();
@@ -81,6 +86,13 @@ export default function HomeScreen() {
   // Focus blocks
   const [focusBlocks, setFocusBlocks] = useState<FocusBlock[]>([]);
 
+  // Subscription states
+  const [trialDays, setTrialDays] = useState(3);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [showTrialBanner, setShowTrialBanner] = useState(true);
+  const [showTrialWelcome, setShowTrialWelcome] = useState(false);
+  const [showTrialExpired, setShowTrialExpired] = useState(false);
+
   const daysInMonth = Array.from({ length: 13 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (10 - i)); // Show 10 days before today and 2 days after today
@@ -97,17 +109,15 @@ export default function HomeScreen() {
     useCallback(() => {
       loadData(selectedDate);
       storage.getTrackingWhyEnabled().then(setTrackingWhyEnabled);
-      storage.consumeCheckInPreview().then((preview) => {
-        if (preview === 'morning') {
-          prepareMorningCheckIn(true);
-        } else if (preview === 'evening') {
-          prepareNightCheckIn(true);
-        }
-      });
     }, [selectedDate])
   );
 
   async function handleAddPress() {
+    const status = await SubscriptionService.getStatus();
+    if (status.trialExpired && !status.isSubscribed) {
+      setShowTrialExpired(true);
+      return;
+    }
     const whyEnabled = await storage.getTrackingWhyEnabled();
     if (whyEnabled) {
       setShowTrigger(true);
@@ -212,18 +222,6 @@ export default function HomeScreen() {
     });
   }, []);
 
-  useEffect(() => {
-    async function performMorningCheck() {
-      try {
-        await prepareMorningCheckIn();
-      } catch (error) {
-        console.error('Error during morning check-in verification:', error);
-      }
-    }
-
-    performMorningCheck();
-  }, []);
-
   async function handleCheckIn(intentionKey: string) {
     try {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -232,23 +230,11 @@ export default function HomeScreen() {
       const found = INTENTIONS.find(i => i.key === intentionKey);
       if (found) setTodayIntention(found);
       setShowCheckInModal(false);
+      loadData(selectedDate);
     } catch (error) {
       console.error('Error during check-in:', error);
     }
   }
-
-  // Evening check-in
-  useEffect(() => {
-    async function performEveningCheck() {
-      try {
-        await prepareNightCheckIn();
-      } catch (error) {
-        console.error('Error during evening check-in verification:', error);
-      }
-    }
-
-    performEveningCheck();
-  }, []);
 
   async function handleNightCheckIn(window: string | null) {
     try {
@@ -256,6 +242,7 @@ export default function HomeScreen() {
       await storage.setLastNightCheckInDate(todayStr);
       await storage.setPhoneFreeWindow(window);
       setShowNightCheckInModal(false);
+      loadData(selectedDate);
     } catch (error) {
       console.error('Error during night check-in:', error);
     }
@@ -265,14 +252,20 @@ export default function HomeScreen() {
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
 
-    const widgetStore = new ExtensionStorage('group.com.ibneyousaf.habittracker.widget');
+    const widgetStore = new ExtensionStorage('group.com.jamesonsinger.habittracker.widget');
 
     const handleAppStateChange = async (nextState: string) => {
       if (nextState === 'active') {
         try {
           const today = new Date().toISOString().split('T')[0];
-          const widgetCountStr = widgetStore.get(`grab_count_${today}`);
-          const widgetCount = widgetCountStr ? parseInt(widgetCountStr, 10) : 0;
+          
+          let widgetCount = 0;
+          if (HabitTrackerModule) {
+            widgetCount = HabitTrackerModule.getWidgetCount();
+          } else {
+            const widgetCountStr = widgetStore.get(`grab_count_${today}`);
+            widgetCount = widgetCountStr ? parseInt(widgetCountStr, 10) : 0;
+          }
 
           const stats = await storage.getDailyStats(today);
           const appCount = stats.count;
@@ -488,13 +481,118 @@ export default function HomeScreen() {
       const peakW = maxPeak > 0 ? `${formatHour(startHour)}–${formatHour(startHour + 2)}` : 'N/A';
       setPeakWindow(peakW);
 
-      // Only auto spawn onboarding diagnostic modal on today's view if Day 3+ completes and calibration goal isn't finalized
-      if (date === todayStr && elapsed >= 3 && !calAdopted) {
-        setCustomAdoptLimit(recLimit);
-        setShowCalibrationModal(true);
-      }
+      // Force evaluate modal coordination checks
+      await runCoordinatedModalChecks(date);
     } catch (error) {
       console.error('Error loading home data:', error);
+    }
+  }
+
+  async function runCoordinatedModalChecks(date: string) {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const status = await SubscriptionService.getStatus();
+      setTrialDays(status.trialDaysRemaining);
+      setIsSubscribed(status.isSubscribed);
+
+      // 1. Trial Expired Modal / Paywall (Highest priority - hard lock)
+      if (status.trialExpired && !status.isSubscribed) {
+        if (!hasShownExpiredModalThisSession.value) {
+          hasShownExpiredModalThisSession.value = true;
+          setShowTrialExpired(true);
+        }
+        setShowTrialWelcome(false);
+        setShowCalibrationModal(false);
+        setShowCheckInModal(false);
+        setShowNightCheckInModal(false);
+        return;
+      }
+
+      // Skip subsequent auto-modals if we already displayed one in the current app session
+      if (hasShownAutoModalThisSession.value) {
+        return;
+      }
+
+      // 2. Trial Welcome Modal
+      if (status.trialDaysRemaining > 0 && !status.isSubscribed) {
+        const seen = await storage.getHasSeenTrialWelcome();
+        if (!seen) {
+          hasShownAutoModalThisSession.value = true;
+          setShowTrialWelcome(true);
+          setShowCalibrationModal(false);
+          setShowCheckInModal(false);
+          setShowNightCheckInModal(false);
+          return;
+        }
+      }
+
+      // 3. Calibration Adoption Modal
+      const allGrabs = await storage.getAllGrabs();
+      const calAdopted = await storage.getCalibrationAdopted();
+      const dates = allGrabs.map(g => g.date).sort();
+      let elapsed = 1;
+      if (dates.length > 0) {
+        const firstD = new Date(dates[0]);
+        const lastD = new Date(dates[dates.length - 1]);
+        const diffTime = Math.abs(lastD.getTime() - firstD.getTime());
+        elapsed = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      }
+      if (date === todayStr && elapsed >= 3 && !calAdopted) {
+        const baselineAvg = elapsed > 0 ? Math.round(allGrabs.length / elapsed) : 0;
+        const recLimit = Math.max(10, Math.round(baselineAvg * 0.85));
+        setCustomAdoptLimit(recLimit);
+        hasShownAutoModalThisSession.value = true;
+        setShowCalibrationModal(true);
+        setShowCheckInModal(false);
+        setShowNightCheckInModal(false);
+        return;
+      }
+
+      // 4. Developer check-in preview triggers (forces preview modal regardless of session lock)
+      const preview = await storage.consumeCheckInPreview();
+      if (preview === 'morning') {
+        await prepareMorningCheckIn(true);
+        return;
+      } else if (preview === 'evening') {
+        await prepareNightCheckIn(true);
+        return;
+      }
+
+      // Time-window checks to prevent double-prompts
+      const currentHour = new Date().getHours();
+      const morningHour = await storage.getMorningCheckInHour();
+      const eveningHour = await storage.getEveningCheckInHour();
+
+      const isMorningWindow = currentHour >= morningHour && currentHour < eveningHour;
+      const isEveningWindow = currentHour >= eveningHour || currentHour < morningHour;
+
+      // 5. Morning Check-In Modal (Only during daytime window)
+      if (isMorningWindow) {
+        const lastCheckIn = await storage.getLastCheckInDate();
+        if (lastCheckIn !== todayStr) {
+          hasShownAutoModalThisSession.value = true;
+          await prepareMorningCheckIn(false);
+          return;
+        }
+      }
+
+      // 6. Night Check-In Modal (Only during evening/night window)
+      if (isEveningWindow) {
+        const lastNightCheckIn = await storage.getLastNightCheckInDate();
+        if (lastNightCheckIn !== todayStr) {
+          hasShownAutoModalThisSession.value = true;
+          await prepareNightCheckIn(false);
+          return;
+        }
+      }
+
+      // If no modals are active, close them (safe default)
+      setShowTrialWelcome(false);
+      setShowCalibrationModal(false);
+      setShowCheckInModal(false);
+      setShowNightCheckInModal(false);
+    } catch (error) {
+      console.error('Error in runCoordinatedModalChecks:', error);
     }
   }
 
@@ -597,8 +695,47 @@ export default function HomeScreen() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
           <Animated.View entering={FadeInUp.delay(100).duration(600)}>
-            <HomeHeader greeting="Good Morning" userName={userName || undefined} />
+            <HomeHeader 
+              greeting="Good Morning" 
+              userName={userName || undefined} 
+              showMotivationsBtn={!showDailyTip}
+              onShowMotivations={() => setShowDailyTip(true)}
+            />
           </Animated.View>
+
+          {!isSubscribed && trialDays <= 0 && (
+            <Pressable
+              onPress={() => router.push('/pages/paywall/paywall' as any)}
+              style={[styles.subBanner, { backgroundColor: colors.primary }]}
+            >
+              <Ionicons name="lock-closed" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.subBannerText}>Trial expired — Subscribe to continue tracking</Text>
+              <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+            </Pressable>
+          )}
+
+          {showTrialBanner && trialDays > 0 && !isSubscribed && (
+            <Pressable
+              onPress={() => router.push('/pages/paywall/paywall' as any)}
+              style={[styles.trialBanner, { backgroundColor: isDark ? '#2A1F3D' : '#F5F3FF', borderColor: colors.border }]}
+            >
+              <Ionicons name="gift" size={16} color={colors.primary} style={{ marginRight: 8 }} />
+              <Text style={[styles.trialBannerText, { color: colors.textMuted, flex: 1 }]}>
+                {trialDays} day{trialDays > 1 ? 's' : ''} left in free trial
+              </Text>
+              <Pressable
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={async (e) => {
+                  e.stopPropagation();
+                  const today = new Date().toISOString().split('T')[0];
+                  await storage.setTrialBannerDismissedDate(today);
+                  setShowTrialBanner(false);
+                }}
+              >
+                <Ionicons name="close" size={16} color={colors.textMuted} />
+              </Pressable>
+            </Pressable>
+          )}
 
           {showDailyTip && (
             <Animated.View entering={FadeInUp.delay(200).duration(600)}>
@@ -738,75 +875,171 @@ export default function HomeScreen() {
           </Animated.View>
         </ScrollView>
 
-        <TriggerModal
-          visible={showTrigger}
-          onSelect={logGrab}
-          onClose={() => setShowTrigger(false)}
-        />
+        {showTrigger && (
+          <TriggerModal
+            visible={showTrigger}
+            onSelect={logGrab}
+            onClose={() => setShowTrigger(false)}
+          />
+        )}
 
-        <ReviewModal
-          visible={showReview}
-          onClose={() => setShowReview(false)}
-        />
+        {showReview && (
+          <ReviewModal
+            visible={showReview}
+            onClose={() => setShowReview(false)}
+          />
+        )}
 
-        <HonestyModal
-          visible={showHonestyAlert}
-          onClose={() => setShowHonestyAlert(false)}
-        />
+        {showHonestyAlert && (
+          <HonestyModal
+            visible={showHonestyAlert}
+            onClose={() => setShowHonestyAlert(false)}
+          />
+        )}
 
-        <MorningCheckInModal
-          visible={showCheckInModal}
-          onClose={handleCheckIn}
-          dailyLimit={checkInLimit}
-          yesterdayStats={yesterdayStats}
-        />
+        {showCheckInModal && (
+          <MorningCheckInModal
+            visible={showCheckInModal}
+            onClose={handleCheckIn}
+            dailyLimit={checkInLimit}
+            yesterdayStats={yesterdayStats}
+          />
+        )}
 
-        <NightCheckInModal
-          visible={showNightCheckInModal}
-          onClose={handleNightCheckIn}
-          todayStats={todayStatsForNight}
-        />
+        {showNightCheckInModal && (
+          <NightCheckInModal
+            visible={showNightCheckInModal}
+            onClose={handleNightCheckIn}
+            todayStats={todayStatsForNight}
+          />
+        )}
+
+        {/* TRIAL WELCOME MODAL — shown once on first home visit */}
+        {showTrialWelcome && (
+          <Modal visible={showTrialWelcome} transparent animationType="fade">
+            <View style={[styles.modalOverlay, { backgroundColor: isDark ? 'rgba(8,5,24,0.88)' : 'rgba(240,237,232,0.88)' }]}>
+              <Animated.View entering={ZoomIn.duration(240)} style={[styles.trialModalCard, { backgroundColor: colors.surface, borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+                <View style={[styles.trialModalIconWrap, { backgroundColor: colors.primary + '14' }]}>
+                  <Ionicons name="gift" size={32} color={colors.primary} />
+                </View>
+                <Text style={[styles.trialModalTitle, { color: colors.text }]}>Your 3-Day Free Trial</Text>
+                <Text style={[styles.trialModalBody, { color: colors.textMuted }]}>
+                  Enjoy full access to all features for 3 days. Track your phone grabs, build streaks, set focus blocks, and reclaim your time — completely free.
+                </Text>
+                <View style={styles.trialModalFeatures}>
+                  <View style={styles.trialModalFeature}>
+                    <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                    <Text style={[styles.trialModalFeatureText, { color: colors.textMuted }]}>Unlimited tracking</Text>
+                  </View>
+                  <View style={styles.trialModalFeature}>
+                    <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                    <Text style={[styles.trialModalFeatureText, { color: colors.textMuted }]}>Analytics & streaks</Text>
+                  </View>
+                  <View style={styles.trialModalFeature}>
+                    <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                    <Text style={[styles.trialModalFeatureText, { color: colors.textMuted }]}>Focus blocks & widgets</Text>
+                  </View>
+                </View>
+                <Pressable
+                  onPress={async () => {
+                    setShowTrialWelcome(false);
+                    await storage.setHasSeenTrialWelcome(true);
+                    loadData(selectedDate);
+                  }}
+                  style={[styles.trialModalBtn, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={styles.trialModalBtnText}>Start My Free Trial</Text>
+                </Pressable>
+              </Animated.View>
+            </View>
+          </Modal>
+        )}
+
+        {/* TRIAL EXPIRED MODAL — soft paywall */}
+        {showTrialExpired && (
+          <Modal visible={showTrialExpired} transparent animationType="fade">
+            <View style={[styles.modalOverlay, { backgroundColor: isDark ? 'rgba(8,5,24,0.88)' : 'rgba(240,237,232,0.88)' }]}>
+              <Animated.View entering={ZoomIn.duration(240)} style={[styles.trialModalCard, { backgroundColor: colors.surface, borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+                <View style={[styles.trialModalIconWrap, { backgroundColor: colors.primary + '14' }]}>
+                  <Ionicons name="lock-closed" size={32} color={colors.primary} />
+                </View>
+                <Text style={[styles.trialModalTitle, { color: colors.text }]}>Trial Has Ended</Text>
+                <Text style={[styles.trialModalBody, { color: colors.textMuted }]}>
+                  Your 3-day free trial has expired. Subscribe now to keep tracking your habits and access all premium features.
+                </Text>
+                <Pressable
+                  onPress={() => { setShowTrialExpired(false); router.push('/pages/paywall/paywall' as any); }}
+                  style={[styles.trialModalBtn, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={styles.trialModalBtnText}>Subscribe Now</Text>
+                </Pressable>
+                <Pressable
+                  onPress={async () => {
+                    setShowTrialExpired(false);
+                    const restored = await SubscriptionService.restorePurchases();
+                    if (restored) {
+                      Alert.alert('Restored', 'Your subscription has been restored.');
+                      const status = await SubscriptionService.getStatus();
+                      setIsSubscribed(status.isSubscribed);
+                      loadData(selectedDate);
+                    } else {
+                      Alert.alert('Not Found', 'No previous purchases found.');
+                    }
+                  }}
+                  style={[styles.trialModalBtnSecondary, { borderColor: colors.border }]}
+                >
+                  <Text style={[styles.trialModalBtnSecondaryText, { color: colors.text }]}>Restore Purchases</Text>
+                </Pressable>
+                <Pressable onPress={() => { setShowTrialExpired(false); loadData(selectedDate); }}>
+                  <Text style={[styles.trialModalMaybeLater, { color: colors.textMuted }]}>Maybe Later</Text>
+                </Pressable>
+              </Animated.View>
+            </View>
+          </Modal>
+        )}
 
         {/* NEURO-DIAGNOSTIC CALIBRATION RESULT OVERLAY MODAL */}
-        <Modal
-          visible={showCalibrationModal}
-          transparent
-          animationType="none"
-        >
-          <Animated.View
-            entering={FadeIn.duration(200)}
-            exiting={FadeOut.duration(150)}
-            style={[
-              styles.modalOverlay,
-              { backgroundColor: isDark ? 'rgba(8, 5, 24, 0.88)' : 'rgba(240, 237, 232, 0.88)' }
-            ]}
+        {showCalibrationModal && (
+          <Modal
+            visible={showCalibrationModal}
+            transparent
+            animationType="none"
           >
             <Animated.View
-              entering={ZoomIn.duration(240)}
-              exiting={ZoomOut.duration(180)}
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(150)}
               style={[
-                styles.diagnosticCard,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                  maxHeight: '85%', // Prevent overflow on smaller screens
-                }
+                styles.modalOverlay,
+                { backgroundColor: isDark ? 'rgba(8, 5, 24, 0.88)' : 'rgba(240, 237, 232, 0.88)' }
               ]}
             >
-              {/* Reusable premium Diagnostic Report Component */}
-              <DiagnosticReport
-                allGrabs={allTimeGrabs}
-                elapsedDays={calibrationElapsedDays}
-                suggestedLimit={suggestedLimit}
-                customAdoptLimit={customAdoptLimit}
-                setCustomAdoptLimit={setCustomAdoptLimit}
-                onAdopt={adoptCalibrationProtocol}
-                onClose={() => setShowCalibrationModal(false)}
-                isDailyStatsMode={false}
-              />
+              <Animated.View
+                entering={ZoomIn.duration(240)}
+                exiting={ZoomOut.duration(180)}
+                style={[
+                  styles.diagnosticCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    maxHeight: '85%', // Prevent overflow on smaller screens
+                  }
+                ]}
+              >
+                {/* Reusable premium Diagnostic Report Component */}
+                <DiagnosticReport
+                  allGrabs={allTimeGrabs}
+                  elapsedDays={calibrationElapsedDays}
+                  suggestedLimit={suggestedLimit}
+                  customAdoptLimit={customAdoptLimit}
+                  setCustomAdoptLimit={setCustomAdoptLimit}
+                  onAdopt={adoptCalibrationProtocol}
+                  onClose={() => { setShowCalibrationModal(false); loadData(selectedDate); }}
+                  isDailyStatsMode={false}
+                />
+              </Animated.View>
             </Animated.View>
-          </Animated.View>
-        </Modal>
+          </Modal>
+        )}
 
       </SafeAreaView>
     </View>
@@ -1079,5 +1312,108 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+
+  subBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  subBannerText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    flex: 1,
+  },
+  trialBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  trialBannerText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  trialModalCard: {
+    width: '88%',
+    maxWidth: 360,
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 28,
+    alignItems: 'center',
+  },
+  trialModalIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  trialModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  trialModalBody: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 18,
+  },
+  trialModalFeatures: {
+    width: '100%',
+    gap: 10,
+    marginBottom: 22,
+  },
+  trialModalFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  trialModalFeatureText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  trialModalBtn: {
+    width: '100%',
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  trialModalBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  trialModalBtnSecondary: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  trialModalBtnSecondaryText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  trialModalMaybeLater: {
+    fontSize: 14,
+    fontWeight: '600',
+    paddingVertical: 4,
   },
 });

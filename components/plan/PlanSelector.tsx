@@ -8,10 +8,11 @@ import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanima
 
 interface PlanSelectorProps {
   onPlanChanged: () => void;
+  onClose: () => void;
   planConfig: PlanConfig;
 }
 
-export const PlanSelector: React.FC<PlanSelectorProps> = ({ onPlanChanged, planConfig }) => {
+export const PlanSelector: React.FC<PlanSelectorProps> = ({ onPlanChanged, onClose, planConfig }) => {
   const { colors, isDark } = useTheme();
   
   const [selectedType, setSelectedType] = useState<PlanConfig['planType']>(planConfig.planType);
@@ -31,19 +32,29 @@ export const PlanSelector: React.FC<PlanSelectorProps> = ({ onPlanChanged, planC
     setP4(planConfig.phase4Limit.toString());
   }, [planConfig]);
 
-  const selectPredefined = async (type: 'easy' | 'moderate' | 'hard') => {
+  const selectPredefined = (type: 'easy' | 'moderate' | 'hard') => {
     setSelectedType(type);
-    let config: PlanConfig;
-    if (type === 'easy') {
-      config = { planType: 'easy', phase1Limit: 45, phase2Limit: 40, phase3Limit: 35, phase4Limit: 30 };
-    } else if (type === 'moderate') {
-      config = { planType: 'moderate', phase1Limit: 40, phase2Limit: 30, phase3Limit: 20, phase4Limit: 10 };
+  };
+
+  const handleConfirmAndApply = async () => {
+    if (selectedType !== 'custom') {
+      let config: PlanConfig;
+      if (selectedType === 'easy') {
+        config = { planType: 'easy', phase1Limit: 45, phase2Limit: 40, phase3Limit: 35, phase4Limit: 30 };
+      } else if (selectedType === 'moderate') {
+        config = { planType: 'moderate', phase1Limit: 40, phase2Limit: 30, phase3Limit: 20, phase4Limit: 10 };
+      } else {
+        config = { planType: 'hard', phase1Limit: 25, phase2Limit: 20, phase3Limit: 15, phase4Limit: 10 };
+      }
+      await storage.setPlanConfig(config);
+      await NotificationService.schedulePlanChanged(selectedType, config.phase1Limit);
+      onPlanChanged();
     } else {
-      config = { planType: 'hard', phase1Limit: 25, phase2Limit: 20, phase3Limit: 15, phase4Limit: 10 };
+      // For custom, it is saved when 'Apply Config' is clicked in the custom modal. 
+      // But we can re-trigger onPlanChanged to be safe.
+      onPlanChanged();
     }
-    await storage.setPlanConfig(config);
-    await NotificationService.schedulePlanChanged(type, config.phase1Limit);
-    onPlanChanged();
+    onClose();
   };
 
   const handleCustomSave = async () => {
@@ -220,6 +231,19 @@ export const PlanSelector: React.FC<PlanSelectorProps> = ({ onPlanChanged, planC
           {getPlanEncouragement(selectedType)}
         </Text>
       </Animated.View>
+
+      <Pressable
+        style={({ pressed }) => [
+          styles.confirmStrategyBtn,
+          {
+            backgroundColor: colors.primary,
+            opacity: pressed ? 0.9 : 1
+          }
+        ]}
+        onPress={handleConfirmAndApply}
+      >
+        <Text style={styles.confirmStrategyBtnText}>Confirm & Apply Strategy</Text>
+      </Pressable>
 
       {/* CUSTOM PROTOCOL MODAL EDITOR */}
       <Modal
@@ -571,5 +595,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '900',
+  },
+  confirmStrategyBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    paddingVertical: 16,
+    marginTop: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  confirmStrategyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
 });

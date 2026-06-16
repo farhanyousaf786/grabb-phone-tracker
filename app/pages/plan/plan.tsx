@@ -496,20 +496,8 @@ export default function PlanScreen() {
               <PlanSelector
                 planConfig={planConfig}
                 onPlanChanged={loadPlanData}
+                onClose={() => setShowSelectorModal(false)}
               />
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.confirmStrategyBtn,
-                  {
-                    backgroundColor: colors.primary,
-                    opacity: pressed ? 0.9 : 1
-                  }
-                ]}
-                onPress={() => setShowSelectorModal(false)}
-              >
-                <Text style={styles.confirmStrategyBtnText}>Confirm & Apply Strategy</Text>
-              </Pressable>
             </ScrollView>
           </SafeAreaView>
         </View>
@@ -519,17 +507,17 @@ export default function PlanScreen() {
       <Modal
         visible={showBypassModal}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowBypassModal(false)}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: isDark ? 'rgba(8, 5, 24, 0.85)' : 'rgba(240, 237, 232, 0.85)' }]}>
+        <View style={[styles.modalOverlay, { backgroundColor: isDark ? 'rgba(8, 5, 24, 0.85)' : 'rgba(240, 237, 232, 0.85)', justifyContent: 'center', alignItems: 'center' }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowBypassModal(false)} />
-          
-          <Animated.View 
-            entering={ZoomIn.duration(200)} 
+
+          <Animated.View
+            entering={ZoomIn.duration(200)}
             style={[
-              styles.modalDialog, 
-              { 
+              styles.modalDialog,
+              {
                 backgroundColor: colors.surface,
                 borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'
               }
@@ -589,7 +577,7 @@ export default function PlanScreen() {
                     <Ionicons name="remove-sharp" size={18} color={colors.text} />
                   </Pressable>
                   <View style={styles.stepperValueContainer}>
-                    <Text style={[styles.stepperValue, { color: colors.text }]}>-{weeklyTaper}</Text>
+                    <Text style={[styles.stepperValue, { color: colors.text }]}>{weeklyTaper}</Text>
                     <Text style={[styles.stepperValueSub, { color: colors.textMuted }]}>swipes/week</Text>
                   </View>
                   <Pressable
@@ -674,9 +662,9 @@ const styles = StyleSheet.create({
 
   // Active Plan Capsule styling
   activePlanCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 12,
     borderRadius: 20,
     padding: 16,
     marginBottom: 16,
@@ -689,6 +677,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
+    minWidth: 0,
   },
   activePlanIconContainer: {
     width: 42,
@@ -699,6 +689,7 @@ const styles = StyleSheet.create({
   },
   activePlanTexts: {
     gap: 2,
+    flexShrink: 1,
   },
   activePlanLabel: {
     fontSize: 8.5,
@@ -729,9 +720,10 @@ const styles = StyleSheet.create({
   configureBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
     borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,

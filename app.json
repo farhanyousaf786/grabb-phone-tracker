@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Grabb | Phone Grab Tracker",
+    "name": "Phone Grab Tracker Pro",
     "slug": "habit-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,10 +12,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ibneyousaf.habittracker",
+      "bundleIdentifier": "com.jamesonsinger.habittracker",
       "entitlements": {
         "com.apple.security.application-groups": [
-          "group.com.ibneyousaf.habittracker.widget"
+          "group.com.jamesonsinger.habittracker.widget"
         ]
       }
     },
@@ -46,11 +46,11 @@
             "ios": {
               "appExtensions": [
                 {
-                  "bundleIdentifier": "com.ibneyousaf.habittracker.widget",
+                  "bundleIdentifier": "com.jamesonsinger.habittracker.widget",
                   "targetName": "widget",
                   "entitlements": {
                     "com.apple.security.application-groups": [
-                      "group.com.habittracker"
+                      "group.com.jamesonsinger.habittracker.widget"
                     ]
                   }
                 }

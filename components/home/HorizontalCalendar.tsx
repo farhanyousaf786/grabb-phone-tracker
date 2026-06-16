@@ -193,13 +193,14 @@ export const HorizontalCalendar: React.FC<HorizontalCalendarProps> = ({ days, se
         >
           {days.map((item, index) => {
             const isActive = selectedDate === item.fullDate;
+            const isFuture = item.fullDate > todayStr;
             const stats = dailyStats?.[item.fullDate] || { count: 0, limit: 40 };
             
             return (
               <Pressable 
                 key={index} 
-                onPress={() => onSelectDate(item.fullDate)}
-                style={styles.calendarDayWrapper}
+                onPress={() => !isFuture && onSelectDate(item.fullDate)}
+                style={[styles.calendarDayWrapper, isFuture && { opacity: 0.4 }]}
               >
                 {isActive ? (
                   <LinearGradient
@@ -245,15 +246,17 @@ export const HorizontalCalendar: React.FC<HorizontalCalendarProps> = ({ days, se
           <View style={styles.gridDaysWrapper}>
             {getDaysInCurrentMonth().map((item, index) => {
               const isActive = selectedDate === item.fullDate;
+              const isFuture = item.fullDate > todayStr;
               const stats = dailyStats?.[item.fullDate] || { count: 0, limit: 40 };
               
               return (
                 <View key={index} style={styles.gridCellWrapper}>
                   <Pressable
-                    onPress={() => onSelectDate(item.fullDate)}
+                    onPress={() => !isFuture && onSelectDate(item.fullDate)}
                     style={[
                       styles.gridDayCell,
                       !item.isCurrentMonth && { opacity: 0.2 },
+                      isFuture && item.isCurrentMonth && { opacity: 0.4 },
                       isActive ? { backgroundColor: colors.primary, borderColor: colors.primary } : {
                         borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'
                       }

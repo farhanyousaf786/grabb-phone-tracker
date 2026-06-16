@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 
 import { ThemeProvider } from '@/context/ThemeContext';
 import { NotificationService } from '@/services/NotificationService';
+import { SubscriptionService } from '@/services/SubscriptionService';
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -12,6 +13,7 @@ export default function RootLayout() {
     NotificationService.init().then(() => {
       NotificationService.requestPermissions();
     });
+    SubscriptionService.init();
   }, []);
 
   return (

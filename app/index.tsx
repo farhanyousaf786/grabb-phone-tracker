@@ -1,22 +1,27 @@
-import { Redirect } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { storage } from '@/utils/storage';
+import { SubscriptionService } from '@/services/SubscriptionService';
 
 export default function Index() {
-  const [route, setRoute] = useState<'/onboarding/one' | '/pages/home/home' | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    async function checkOnboarding() {
+    async function checkEntry() {
       const complete = await storage.getOnboardingComplete();
-      setRoute(complete ? '/pages/home/home' : '/onboarding/one');
+      if (!complete) {
+        router.replace('/onboarding/one');
+        return;
+      }
+
+      // Start trial on first open after onboarding
+      await SubscriptionService.startTrialIfNeeded();
+
+      router.replace('/pages/home/home');
     }
 
-    checkOnboarding();
+    checkEntry();
   }, []);
 
-  if (!route) {
-    return null;
-  }
-
-  return <Redirect href={route} />;
+  return null;
 }

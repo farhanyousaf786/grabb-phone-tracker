@@ -425,7 +425,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
     lineHeight: 15,
-    fontStyle: 'italic',
   },
   subLogItem: { 
     flexDirection: 'row', 

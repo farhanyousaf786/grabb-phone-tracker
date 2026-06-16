@@ -5,6 +5,8 @@ import { useTheme } from '@/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { storage, NotificationPreferences } from '@/utils/storage';
 import { NotificationService, NotifType } from '@/services/NotificationService';
+import { MorningCheckInModal } from '@/components/home/MorningCheckInModal';
+import { NightCheckInModal } from '@/components/home/NightCheckInModal';
 
 export default function SettingsScreen() {
   const { toggleTheme, isDark, colors } = useTheme();
@@ -19,6 +21,8 @@ export default function SettingsScreen() {
   });
   const [morningHour, setMorningHour] = useState(8);
   const [eveningHour, setEveningHour] = useState(18);
+  const [showCheckInModal, setShowCheckInModal] = useState(false);
+  const [showNightCheckInModal, setShowNightCheckInModal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -74,9 +78,12 @@ export default function SettingsScreen() {
     return h > 12 ? `${h - 12}pm` : `${h}am`;
   }
 
-  async function previewCheckIn(type: 'morning' | 'evening') {
-    await storage.setCheckInPreview(type);
-    router.push('/pages/home/home');
+  function previewCheckIn(type: 'morning' | 'evening') {
+    if (type === 'morning') {
+      setShowCheckInModal(true);
+    } else {
+      setShowNightCheckInModal(true);
+    }
   }
 
   return (
@@ -95,15 +102,31 @@ export default function SettingsScreen() {
                 <View style={[styles.iconWrap, { backgroundColor: colors.primary + '14' }]}>
                   <Ionicons name={isDark ? "moon" : "sunny"} size={20} color={colors.primary} />
                 </View>
-                <Text style={[styles.settingLabel, { color: colors.text }]}>Dark Mode</Text>
+                <View style={styles.textContainer}><Text style={[styles.settingLabel, { color: colors.text }]}>Dark Mode</Text></View>
               </View>
               <Switch
                 value={isDark}
                 onValueChange={toggleTheme}
                 trackColor={{ false: '#F0EDE8', true: '#1A1A18' }}
                 thumbColor={isDark ? '#5FDDaa' : '#FFFFFF'}
-              />
+               style={{ transform: [{ scale: 0.85 }] }} />
             </View>
+          </View>
+
+          <View style={[styles.section, { backgroundColor: colors.surface, borderColor: '#8B5CF6' + '22' }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Subscription</Text>
+            <Pressable onPress={() => router.push('/pages/paywall/paywall' as any)} style={styles.settingRow}>
+              <View style={styles.settingLabelWrap}>
+                <View style={[styles.iconWrap, { backgroundColor: colors.primary + '14' }]}>
+                  <Ionicons name="card" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={[styles.settingLabel, { color: colors.text }]}>Manage Subscription</Text>
+                  <Text style={[styles.settingDescription, { color: colors.textMuted }]}>View plans, subscribe, or restore purchases</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+            </Pressable>
           </View>
 
           <View style={[styles.section, { backgroundColor: colors.surface, borderColor: '#8B5CF6' + '22' }]}>
@@ -113,7 +136,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconWrap, { backgroundColor: colors.primary + '14' }]}>
                   <Ionicons name="warning" size={20} color={colors.primary} />
                 </View>
-                <View>
+                <View style={styles.textContainer}>
                   <Text style={[styles.settingLabel, { color: colors.text }]}>Limit Alerts</Text>
                   <Text style={[styles.settingDescription, { color: colors.textMuted }]}>Approaching and exceeded goal alerts</Text>
                 </View>
@@ -121,6 +144,7 @@ export default function SettingsScreen() {
               <Switch
                 value={notificationPrefs.limitAlerts}
                 onValueChange={(value) => toggleNotificationPreference('limitAlerts', value)}
+                style={{ transform: [{ scale: 0.85 }] }}
                 trackColor={{ false: '#F0EDE8', true: colors.primary }}
                 thumbColor="#FFFFFF"
               />
@@ -131,7 +155,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconWrap, { backgroundColor: colors.primary + '14' }]}>
                   <Ionicons name="flame" size={20} color={colors.primary} />
                 </View>
-                <View>
+                <View style={styles.textContainer}>
                   <Text style={[styles.settingLabel, { color: colors.text }]}>Streak Reminders</Text>
                   <Text style={[styles.settingDescription, { color: colors.textMuted }]}>Daily streak-at-risk reminders</Text>
                 </View>
@@ -139,6 +163,7 @@ export default function SettingsScreen() {
               <Switch
                 value={notificationPrefs.streakReminders}
                 onValueChange={(value) => toggleNotificationPreference('streakReminders', value)}
+                style={{ transform: [{ scale: 0.85 }] }}
                 trackColor={{ false: '#F0EDE8', true: colors.primary }}
                 thumbColor="#FFFFFF"
               />
@@ -149,7 +174,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconWrap, { backgroundColor: colors.primary + '14' }]}>
                   <Ionicons name="notifications" size={20} color={colors.primary} />
                 </View>
-                <View>
+                <View style={styles.textContainer}>
                   <Text style={[styles.settingLabel, { color: colors.text }]}>Goal Reminders</Text>
                   <Text style={[styles.settingDescription, { color: colors.textMuted }]}>6-hour daily goal and quote reminders</Text>
                 </View>
@@ -157,6 +182,7 @@ export default function SettingsScreen() {
               <Switch
                 value={notificationPrefs.goalReminders}
                 onValueChange={(value) => toggleNotificationPreference('goalReminders', value)}
+                style={{ transform: [{ scale: 0.85 }] }}
                 trackColor={{ false: '#F0EDE8', true: colors.primary }}
                 thumbColor="#FFFFFF"
               />
@@ -167,7 +193,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconWrap, { backgroundColor: colors.primary + '14' }]}>
                   <Ionicons name="sunny" size={20} color={colors.primary} />
                 </View>
-                <View>
+                <View style={styles.textContainer}>
                   <Text style={[styles.settingLabel, { color: colors.text }]}>Morning Check-In</Text>
                   <Text style={[styles.settingDescription, { color: colors.textMuted }]}>Daily reminder at {formatHour(morningHour)}</Text>
                 </View>
@@ -175,6 +201,7 @@ export default function SettingsScreen() {
               <Switch
                 value={notificationPrefs.morningCheckInReminders}
                 onValueChange={(value) => toggleNotificationPreference('morningCheckInReminders', value)}
+                style={{ transform: [{ scale: 0.85 }] }}
                 trackColor={{ false: '#F0EDE8', true: colors.primary }}
                 thumbColor="#FFFFFF"
               />
@@ -185,7 +212,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconWrap, { backgroundColor: colors.primary + '14' }]}>
                   <Ionicons name="moon" size={20} color={colors.primary} />
                 </View>
-                <View>
+                <View style={styles.textContainer}>
                   <Text style={[styles.settingLabel, { color: colors.text }]}>Evening Reflection</Text>
                   <Text style={[styles.settingDescription, { color: colors.textMuted }]}>Daily reminder at {formatHour(eveningHour)}</Text>
                 </View>
@@ -193,6 +220,7 @@ export default function SettingsScreen() {
               <Switch
                 value={notificationPrefs.eveningCheckInReminders}
                 onValueChange={(value) => toggleNotificationPreference('eveningCheckInReminders', value)}
+                style={{ transform: [{ scale: 0.85 }] }}
                 trackColor={{ false: '#F0EDE8', true: colors.primary }}
                 thumbColor="#FFFFFF"
               />
@@ -207,7 +235,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconWrap, { backgroundColor: colors.primary + '14' }]}>
                   <Ionicons name="sunny" size={20} color={colors.primary} />
                 </View>
-                <View>
+                <View style={styles.textContainer}>
                   <Text style={[styles.settingLabel, { color: colors.text }]}>Morning Check-In</Text>
                   <Text style={[styles.settingDescription, { color: colors.textMuted }]}>Appears at {formatHour(morningHour)}</Text>
                 </View>
@@ -228,7 +256,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconWrap, { backgroundColor: colors.primary + '14' }]}>
                   <Ionicons name="moon" size={20} color={colors.primary} />
                 </View>
-                <View>
+                <View style={styles.textContainer}>
                   <Text style={[styles.settingLabel, { color: colors.text }]}>Evening Reflection</Text>
                   <Text style={[styles.settingDescription, { color: colors.textMuted }]}>Appears at {formatHour(eveningHour)}</Text>
                 </View>
@@ -263,7 +291,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconWrap, { backgroundColor: colors.primary + '14' }]}>
                   <Ionicons name="help-circle" size={20} color={colors.primary} />
                 </View>
-                <View>
+                <View style={styles.textContainer}>
                   <Text style={[styles.settingLabel, { color: colors.text }]}>Track the Why</Text>
                   <Text style={[styles.settingDescription, { color: colors.textMuted }]}>Ask why after each pickup</Text>
                 </View>
@@ -273,7 +301,7 @@ export default function SettingsScreen() {
                 onValueChange={toggleTrackingWhy}
                 trackColor={{ false: '#F0EDE8', true: colors.primary }}
                 thumbColor="#FFFFFF"
-              />
+               style={{ transform: [{ scale: 0.85 }] }} />
             </View>
           </View>
 
@@ -282,6 +310,33 @@ export default function SettingsScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      {showCheckInModal && (
+        <MorningCheckInModal
+          visible={showCheckInModal}
+          onClose={() => setShowCheckInModal(false)}
+          dailyLimit={morningHour}
+          yesterdayStats={{
+            count: 32,
+            limit: 40,
+            topTrigger: 'Boredom',
+            success: true,
+          }}
+        />
+      )}
+
+      {showNightCheckInModal && (
+        <NightCheckInModal
+          visible={showNightCheckInModal}
+          onClose={() => setShowNightCheckInModal(false)}
+          todayStats={{
+            count: 38,
+            limit: 40,
+            topTrigger: 'Social',
+            success: true,
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -305,11 +360,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 16 },
   settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  settingRowStacked: { marginTop: 18 },
-  settingLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  settingRowStacked: { marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  settingLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  textContainer: { flex: 1, paddingRight: 8 },
   iconWrap: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  settingLabel: { fontSize: 16, fontWeight: '600' },
-  settingDescription: { fontSize: 12, fontWeight: '500', marginTop: 2 },
+  settingLabel: { fontSize: 14, fontWeight: '600' },
+  settingDescription: { fontSize: 11, fontWeight: '500', marginTop: 2 },
   footer: { marginTop: 'auto', paddingVertical: 32, alignItems: 'center' },
   versionText: { fontSize: 12, fontWeight: '500' },
   hourAdjuster: { flexDirection: 'row', alignItems: 'center', gap: 10 },

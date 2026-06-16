@@ -3,7 +3,7 @@ import SwiftUI
 import AppIntents
 
 // Shared App Group Identifier
-private let appGroupId = "group.com.ibneyousaf.habittracker.widget"
+private let appGroupId = "group.com.jamesonsinger.habittracker.widget"
 
 // Widget Timeline Entry
 struct SimpleEntry: TimelineEntry {
@@ -58,6 +58,7 @@ struct DecrementIntent: AppIntent {
 private func getTodayString() -> String {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd"
+    formatter.timeZone = TimeZone(abbreviation: "UTC")
     return formatter.string(from: Date())
 }
 

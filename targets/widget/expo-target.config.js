@@ -4,7 +4,7 @@ module.exports = config => ({
   icon: 'https://github.com/expo.png',
   entitlements: {
     "com.apple.security.application-groups": [
-      "group.com.ibneyousaf.habittracker.widget"
+      "group.com.jamesonsinger.habittracker.widget"
     ]
   },
 });

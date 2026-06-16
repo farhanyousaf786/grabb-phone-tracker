@@ -7,6 +7,8 @@ interface ReviewModalProps {
 }
 
 export const ReviewModal: React.FC<ReviewModalProps> = ({ visible, onClose }) => {
+  if (!visible) return null;
+
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.reviewOverlay}>
