@@ -29,6 +29,7 @@ export default function PaywallScreen() {
   const [selectedSku, setSelectedSku] = useState<string | null>(
     SUBSCRIPTION_PRODUCTS[0] || null
   );
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [trialDays, setTrialDays] = useState(0);
@@ -40,21 +41,39 @@ export default function PaywallScreen() {
   async function loadData() {
     const status = await SubscriptionService.getStatus();
     setTrialDays(status.trialDaysRemaining);
+
+    if (Platform.OS === 'web') {
+      setLoadingProducts(false);
+      return;
+    }
+
+    setLoadingProducts(true);
+    try {
+      await SubscriptionService.prepareStore();
+      setProducts(SubscriptionService.getProducts());
+    } finally {
+      setLoadingProducts(false);
+    }
   }
 
   async function handleSubscribe() {
     if (!selectedSku) return;
     setLoading(true);
     try {
-      await SubscriptionService.prepareStore();
-      const success = await SubscriptionService.subscribe(selectedSku);
-      if (success) {
+      const result = await SubscriptionService.subscribe(selectedSku);
+
+      if (result.success) {
         const status = await SubscriptionService.getStatus();
         if (status.isSubscribed) {
           Alert.alert('Welcome!', 'Your subscription is active.');
           router.replace('/pages/home/home');
+          return;
         }
+        // Purchase sheet may still be open — wait for purchaseUpdatedListener.
+        return;
       }
+
+      Alert.alert('Unable to Subscribe', result.error ?? 'Something went wrong. Please try again.');
     } catch (e) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
@@ -143,6 +162,15 @@ export default function PaywallScreen() {
         <Animated.View entering={FadeInUp.delay(300).duration(500)} style={styles.pricingWrap}>
           <Text style={[styles.pricingTitle, { color: colors.text }]}>Choose your plan</Text>
 
+          {loadingProducts && (
+            <View style={styles.loadingProducts}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={[styles.loadingProductsText, { color: colors.textMuted }]}>
+                Loading plans…
+              </Text>
+            </View>
+          )}
+
           {products.map((p) => {
             const selected = selectedSku === p.productId;
             const yearly = isYearly(p.productId);
@@ -181,7 +209,7 @@ export default function PaywallScreen() {
             );
           })}
 
-          {products.length === 0 && Platform.OS !== 'web' && (
+          {products.length === 0 && !loadingProducts && Platform.OS !== 'web' && (
             <>
               {/* Fallback pricing until StoreKit loads on subscribe */}
               <Pressable
@@ -291,6 +319,8 @@ const styles = StyleSheet.create({
   featureText: { fontSize: 15, flex: 1 },
   pricingWrap: { marginBottom: 24 },
   pricingTitle: { fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  loadingProducts: { alignItems: 'center', paddingVertical: 16, marginBottom: 8 },
+  loadingProductsText: { fontSize: 14, marginTop: 8 },
   noProducts: { fontSize: 14, textAlign: 'center', marginBottom: 12 },
   planCard: {
     borderRadius: 16,

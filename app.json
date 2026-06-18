@@ -16,6 +16,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jamesonsinger.habittracker",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Allow Phone Grab Tracker to connect to the development server on your local network while testing.",
+        "NSBonjourServices": ["_http._tcp"]
+      },
       "entitlements": {
         "com.apple.security.application-groups": [
           "group.com.jamesonsinger.habittracker.widget"

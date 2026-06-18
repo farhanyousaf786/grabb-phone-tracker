@@ -27,8 +27,6 @@
 #if TARGET_OS_SIMULATOR
   return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"];
 #else
-  // Physical devices: build the Metro URL directly from ip.txt (embedded at build time).
-  // Avoids isPackagerRunning checks that fail on device and cause a null bundle URL.
   NSString *ipPath = [[NSBundle mainBundle] pathForResource:@"ip" ofType:@"txt"];
   NSString *ip = ipPath
     ? [[NSString stringWithContentsOfFile:ipPath encoding:NSUTF8StringEncoding error:nil]
@@ -45,10 +43,27 @@
         stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]]
     : @"8081";
 
-  NSString *hostPort = [port length] ? [NSString stringWithFormat:@"%@:%@", ip, port] : ip;
+  // Try Wi‑Fi IP first, then localhost (works over USB with: iproxy 8081 8081)
+  NSArray<NSString *> *hostPorts = @[
+    [NSString stringWithFormat:@"%@:%@", ip, port],
+    [NSString stringWithFormat:@"localhost:%@", port],
+  ];
+
+  for (NSString *hostPort in hostPorts) {
+    if ([RCTBundleURLProvider isPackagerRunning:hostPort scheme:@"http"]) {
+      return [RCTBundleURLProvider jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"
+                                               packagerHost:hostPort
+                                             packagerScheme:@"http"
+                                                  enableDev:YES
+                                         enableMinification:NO
+                                            inlineSourceMap:NO
+                                                modulesOnly:NO
+                                                  runModule:YES];
+    }
+  }
 
   return [RCTBundleURLProvider jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"
-                                           packagerHost:hostPort
+                                           packagerHost:hostPorts[0]
                                          packagerScheme:@"http"
                                               enableDev:YES
                                      enableMinification:NO

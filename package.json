@@ -2,10 +2,12 @@
   "name": "habit-tracker",
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start --port 8081",
+    "start": "expo start --port 8081 --host lan",
     "android": "expo run:android",
     "ios": "expo run:ios --port 8081",
     "ios:device": "expo run:ios --device --port 8081",
+    "ios:device:usb": "iproxy 8081 8081 & sleep 1 && expo run:ios --device --port 8081",
+    "ios:device:tunnel": "expo run:ios --device --port 8081 --tunnel",
     "web": "expo start --web",
     "lint": "expo lint"
   },

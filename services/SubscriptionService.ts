@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  setup,
   initConnection,
   endConnection,
   getSubscriptions,
@@ -46,43 +47,61 @@ class SubscriptionServiceClass {
   private connected = false;
   private products: Subscription[] = [];
   private listeners: { remove: () => void }[] = [];
-  private initializing: Promise<void> | null = null;
+  private initializing: Promise<boolean> | null = null;
+  private initError: string | null = null;
 
-  /** Connect to the App Store — call only when user taps Subscribe or Restore. */
-  async prepareStore(options: { validateReceipts?: boolean } = {}) {
-    if (Platform.OS === 'web' || this.connected) {
-      if (options.validateReceipts && this.connected) {
+  /** Connect to the App Store and fetch subscription products. */
+  async prepareStore(options: { validateReceipts?: boolean } = {}): Promise<boolean> {
+    if (Platform.OS === 'web') return false;
+
+    if (this.connected) {
+      if (this.products.length === 0) {
+        await this.loadProducts();
+      }
+      if (options.validateReceipts) {
         await this.validateSubscriptionFromReceipts();
       }
-      return;
+      return true;
     }
+
     if (this.initializing) {
-      await this.initializing;
-      if (options.validateReceipts && this.connected) {
+      const ready = await this.initializing;
+      if (ready && options.validateReceipts) {
         await this.validateSubscriptionFromReceipts();
       }
-      return;
+      return ready;
     }
 
     this.initializing = this.doInit(options);
     try {
-      await this.initializing;
+      return await this.initializing;
     } finally {
       this.initializing = null;
     }
   }
 
-  private async doInit(options: { validateReceipts?: boolean } = {}) {
+  private async doInit(options: { validateReceipts?: boolean } = {}): Promise<boolean> {
     try {
+      setup({ storekitMode: 'STOREKIT1_MODE' });
       await initConnection();
       this.connected = true;
+      this.initError = null;
       this.setupPurchaseListeners();
       await this.loadProducts();
+      if (__DEV__) {
+        console.log(
+          'IAP products loaded:',
+          this.products.map((p) => p.productId).join(', ') || '(none)',
+        );
+      }
       if (options.validateReceipts) {
         await this.validateSubscriptionFromReceipts();
       }
+      return true;
     } catch (e) {
+      this.initError = e instanceof Error ? e.message : 'Could not connect to the App Store.';
       console.log('IAP init error:', e);
+      return false;
     }
   }
 
@@ -136,11 +155,20 @@ class SubscriptionServiceClass {
 
   private async loadProducts() {
     if (!this.connected || SUBSCRIPTION_PRODUCTS.length === 0) return;
-    try {
-      const subs = await getSubscriptions({ skus: SUBSCRIPTION_PRODUCTS });
-      this.products = subs;
-    } catch (e) {
-      console.log('Load products error:', e);
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const subs = await getSubscriptions({ skus: SUBSCRIPTION_PRODUCTS });
+        if (subs.length > 0) {
+          this.products = subs;
+          return;
+        }
+      } catch (e) {
+        console.log(`Load products attempt ${attempt + 1} error:`, e);
+      }
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
     }
   }
 
@@ -226,15 +254,54 @@ class SubscriptionServiceClass {
     await AsyncStorage.removeItem(SUBSCRIPTION_PURCHASE_DATE_KEY);
   }
 
-  async subscribe(productId: string): Promise<boolean> {
-    if (Platform.OS === 'web') return false;
-    await this.prepareStore();
+  async subscribe(productId: string): Promise<{ success: boolean; error?: string }> {
+    if (Platform.OS === 'web') {
+      return { success: false, error: 'Purchases are not supported on web.' };
+    }
+
+    const ready = await this.prepareStore();
+    if (!ready) {
+      return {
+        success: false,
+        error:
+          this.initError ??
+          'Could not connect to the App Store. Check your internet connection and try again.',
+      };
+    }
+
+    if (!this.products.find((p) => p.productId === productId)) {
+      await this.loadProducts();
+    }
+
+    const loadedProduct = this.products.find((p) => p.productId === productId);
+    if (!loadedProduct) {
+      return {
+        success: false,
+        error:
+          'Subscription plans could not be loaded from Apple.\n\nRebuild the app (npm run ios:device:usb), then try again. If it still fails, confirm subscriptions exist in App Store Connect for bundle ID com.jamesonsinger.habittracker.',
+      };
+    }
+
     try {
       await requestSubscription({ sku: productId });
-      return true;
+      return { success: true };
     } catch (e) {
+      const message = e instanceof Error ? e.message : 'Purchase failed';
       console.log('Subscribe error:', e);
-      return false;
+
+      if (message.toLowerCase().includes('invalid product')) {
+        return {
+          success: false,
+          error:
+            'Apple rejected this subscription ID. Rebuild the app, then try again. Product IDs must match App Store Connect exactly.',
+        };
+      }
+
+      if (message.toLowerCase().includes('cancel')) {
+        return { success: false, error: 'Purchase cancelled.' };
+      }
+
+      return { success: false, error: message };
     }
   }
 
