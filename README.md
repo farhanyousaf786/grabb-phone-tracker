@@ -8,3 +8,8 @@ Focus blocks — user defines phone-free time windows and the app tracks whether
 # Grabb-Phone-Grab-Tracker
 # Grabb-Phone-Grab-Tracker
 # grabb-phone-tracker
+i already have sanbox id bu t when. i go to click on suncrib now it say unabel to subcsribr apple has not activate these subscription yet
+
+for dev testinf reubuild app once npm run ios:device:us then try
+
+for app sotr approve this si ok to upload

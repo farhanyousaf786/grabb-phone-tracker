@@ -17,6 +17,20 @@ import { Platform } from 'react-native';
 
 const TRIAL_DURATION_DAYS = 3;
 
+function formatPurchaseError(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (error && typeof error === 'object') {
+    const err = error as { message?: string; debugMessage?: string; code?: string; productId?: string };
+    const parts = [err.message || err.debugMessage, err.code, err.productId].filter(Boolean);
+    if (parts.length > 0) {
+      return parts.join(' — ');
+    }
+  }
+  return 'Purchase failed';
+}
+
 const FIRST_OPEN_DATE_KEY = 'habit_tracker_first_open_date';
 const SUBSCRIPTION_ACTIVE_KEY = 'habit_tracker_subscription_active';
 const SUBSCRIPTION_PRODUCT_ID_KEY = 'habit_tracker_subscription_product_id';
@@ -277,16 +291,9 @@ class SubscriptionServiceClass {
       await requestSubscription({ sku: productId });
       return { success: true };
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Purchase failed';
       console.log('Subscribe error:', e);
 
-      if (message.toLowerCase().includes('invalid product')) {
-        return {
-          success: false,
-          error:
-            'Apple has not activated these subscriptions yet.\n\nFor dev testing: rebuild the app once (npm run ios:device:usb), then try again.\n\nFor App Store approval: this is OK — upload a production build and resubmit. Apple tests subscriptions during review.',
-        };
-      }
+      const message = formatPurchaseError(e);
 
       if (message.toLowerCase().includes('cancel')) {
         return { success: false, error: 'Purchase cancelled.' };
