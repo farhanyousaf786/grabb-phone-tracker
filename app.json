@@ -7,7 +7,10 @@
     "scheme": "habittracker",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "icon": "./assets/logo/appLogo_clean.png",
     "splash": {
+      "image": "./assets/logo/appLogo_clean.png",
+      "resizeMode": "contain",
       "backgroundColor": "#F7F8FA"
     },
     "ios": {

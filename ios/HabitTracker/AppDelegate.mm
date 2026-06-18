@@ -24,7 +24,38 @@
 - (NSURL *)bundleURL
 {
 #if DEBUG
+#if TARGET_OS_SIMULATOR
   return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"];
+#else
+  // Physical devices: build the Metro URL directly from ip.txt (embedded at build time).
+  // Avoids isPackagerRunning checks that fail on device and cause a null bundle URL.
+  NSString *ipPath = [[NSBundle mainBundle] pathForResource:@"ip" ofType:@"txt"];
+  NSString *ip = ipPath
+    ? [[NSString stringWithContentsOfFile:ipPath encoding:NSUTF8StringEncoding error:nil]
+        stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]]
+    : nil;
+
+  if (ip.length == 0) {
+    ip = [[NSProcessInfo processInfo] environment][@"REACT_NATIVE_PACKAGER_HOSTNAME"] ?: @"localhost";
+  }
+
+  NSString *portPath = [[NSBundle mainBundle] pathForResource:@"metro" ofType:@"port"];
+  NSString *port = portPath
+    ? [[NSString stringWithContentsOfFile:portPath encoding:NSUTF8StringEncoding error:nil]
+        stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]]
+    : @"8081";
+
+  NSString *hostPort = [port length] ? [NSString stringWithFormat:@"%@:%@", ip, port] : ip;
+
+  return [RCTBundleURLProvider jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"
+                                           packagerHost:hostPort
+                                         packagerScheme:@"http"
+                                              enableDev:YES
+                                     enableMinification:NO
+                                        inlineSourceMap:NO
+                                            modulesOnly:NO
+                                              runModule:YES];
+#endif
 #else
   return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];
 #endif

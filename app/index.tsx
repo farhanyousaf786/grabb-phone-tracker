@@ -1,5 +1,8 @@
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
+import { Image, StyleSheet, View } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
+
 import { storage } from '@/utils/storage';
 import { SubscriptionService } from '@/services/SubscriptionService';
 
@@ -14,14 +17,35 @@ export default function Index() {
         return;
       }
 
-      // Start trial on first open after onboarding
       await SubscriptionService.startTrialIfNeeded();
-
       router.replace('/pages/home/home');
     }
 
-    checkEntry();
+    checkEntry().finally(() => {
+      SplashScreen.hideAsync().catch(() => {});
+    });
   }, []);
 
-  return null;
+  return (
+    <View style={styles.container}>
+      <Image
+        source={require('../assets/logo/appLogo_clean.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F7F8FA',
+  },
+  logo: {
+    width: 180,
+    height: 180,
+  },
+});

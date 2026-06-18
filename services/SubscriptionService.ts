@@ -46,15 +46,41 @@ class SubscriptionServiceClass {
   private connected = false;
   private products: Subscription[] = [];
   private listeners: { remove: () => void }[] = [];
+  private initializing: Promise<void> | null = null;
 
-  async init() {
-    if (Platform.OS === 'web') return;
+  /** Connect to the App Store — call only when user taps Subscribe or Restore. */
+  async prepareStore(options: { validateReceipts?: boolean } = {}) {
+    if (Platform.OS === 'web' || this.connected) {
+      if (options.validateReceipts && this.connected) {
+        await this.validateSubscriptionFromReceipts();
+      }
+      return;
+    }
+    if (this.initializing) {
+      await this.initializing;
+      if (options.validateReceipts && this.connected) {
+        await this.validateSubscriptionFromReceipts();
+      }
+      return;
+    }
+
+    this.initializing = this.doInit(options);
+    try {
+      await this.initializing;
+    } finally {
+      this.initializing = null;
+    }
+  }
+
+  private async doInit(options: { validateReceipts?: boolean } = {}) {
     try {
       await initConnection();
       this.connected = true;
-      await this.loadProducts();
       this.setupPurchaseListeners();
-      await this.validateSubscriptionFromReceipts();
+      await this.loadProducts();
+      if (options.validateReceipts) {
+        await this.validateSubscriptionFromReceipts();
+      }
     } catch (e) {
       console.log('IAP init error:', e);
     }
@@ -134,8 +160,8 @@ class SubscriptionServiceClass {
     const firstOpenDateStr = await AsyncStorage.getItem(FIRST_OPEN_DATE_KEY);
     let isSubscribed = (await AsyncStorage.getItem(SUBSCRIPTION_ACTIVE_KEY)) === 'true';
 
-    // Validate subscription hasn't expired (receipt check on status read)
-    if (isSubscribed) {
+    // Only validate receipts if the store is already connected (paywall was opened).
+    if (isSubscribed && this.connected) {
       try {
         const purchases = await getAvailablePurchases();
         const subPurchase = purchases.find((p) =>
@@ -202,6 +228,7 @@ class SubscriptionServiceClass {
 
   async subscribe(productId: string): Promise<boolean> {
     if (Platform.OS === 'web') return false;
+    await this.prepareStore();
     try {
       await requestSubscription({ sku: productId });
       return true;
@@ -213,6 +240,7 @@ class SubscriptionServiceClass {
 
   async restorePurchases(): Promise<boolean> {
     if (Platform.OS === 'web') return false;
+    await this.prepareStore({ validateReceipts: true });
     try {
       const purchases = await getAvailablePurchases();
       const subPurchase = purchases.find((p) =>

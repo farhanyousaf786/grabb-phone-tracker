@@ -1,19 +1,20 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
 
 import { ThemeProvider } from '@/context/ThemeContext';
 import { NotificationService } from '@/services/NotificationService';
-import { SubscriptionService } from '@/services/SubscriptionService';
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   useEffect(() => {
     NotificationService.init().then(() => {
       NotificationService.requestPermissions();
     });
-    SubscriptionService.init();
   }, []);
 
   return (

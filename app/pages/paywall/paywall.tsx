@@ -40,25 +40,13 @@ export default function PaywallScreen() {
   async function loadData() {
     const status = await SubscriptionService.getStatus();
     setTrialDays(status.trialDaysRemaining);
-
-    const subs = SubscriptionService.getProducts();
-    setProducts(subs);
-    if (subs.length > 0) {
-      setSelectedSku(subs[0].productId);
-    }
   }
 
   async function handleSubscribe() {
     if (!selectedSku) return;
-    if (products.length === 0) {
-      Alert.alert(
-        'Not Available',
-        'In-App Purchases require a development build. Please run the app on a real device or simulator with native compilation.'
-      );
-      return;
-    }
     setLoading(true);
     try {
+      await SubscriptionService.prepareStore();
       const success = await SubscriptionService.subscribe(selectedSku);
       if (success) {
         const status = await SubscriptionService.getStatus();
@@ -130,8 +118,8 @@ export default function PaywallScreen() {
           <Text style={[styles.title, { color: colors.text }]}>Unlock Full Access</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             {trialDays > 0
-              ? `Your free trial ends in ${trialDays} day${trialDays > 1 ? 's' : ''}`
-              : 'Your free trial has ended'}
+              ? `${trialDays} day${trialDays > 1 ? 's' : ''} left in your free trial`
+              : 'Your free trial has ended. Subscribe to continue.'}
           </Text>
         </Animated.View>
 
@@ -154,12 +142,6 @@ export default function PaywallScreen() {
         {/* Pricing */}
         <Animated.View entering={FadeInUp.delay(300).duration(500)} style={styles.pricingWrap}>
           <Text style={[styles.pricingTitle, { color: colors.text }]}>Choose your plan</Text>
-
-          {products.length === 0 && (
-            <Text style={[styles.noProducts, { color: colors.textMuted }]}>
-              Loading subscription options...
-            </Text>
-          )}
 
           {products.map((p) => {
             const selected = selectedSku === p.productId;
@@ -201,7 +183,7 @@ export default function PaywallScreen() {
 
           {products.length === 0 && Platform.OS !== 'web' && (
             <>
-              {/* Fallback UI when products not loaded */}
+              {/* Fallback pricing until StoreKit loads on subscribe */}
               <Pressable
                 onPress={() => setSelectedSku(SUBSCRIPTION_PRODUCTS[0])}
                 style={[
@@ -262,9 +244,7 @@ export default function PaywallScreen() {
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.subscribeText}>
-                {trialDays > 0 ? 'Start Free Trial' : 'Subscribe Now'}
-              </Text>
+              <Text style={styles.subscribeText}>Subscribe Now</Text>
             )}
           </Pressable>
 

@@ -2,9 +2,10 @@
   "name": "habit-tracker",
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --port 8081",
     "android": "expo run:android",
-    "ios": "expo run:ios",
+    "ios": "expo run:ios --port 8081",
+    "ios:device": "expo run:ios --device --port 8081",
     "web": "expo start --web",
     "lint": "expo lint"
   },
@@ -30,16 +31,18 @@
     "react-dom": "18.3.1",
     "react-native": "^0.76.9",
     "react-native-gesture-handler": "~2.20.2",
+    "react-native-iap": "^12.16.0",
     "react-native-reanimated": "~3.16.1",
     "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.4.0",
     "react-native-svg": "15.8.0",
-    "react-native-web": "~0.19.13",
-    "react-native-iap": "^12.16.0"
+    "react-native-web": "~0.19.13"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~18.3.12",
+    "eslint": "^8.57.0",
+    "eslint-config-expo": "~8.0.1",
     "typescript": "^5.3.3"
   },
   "private": true,
