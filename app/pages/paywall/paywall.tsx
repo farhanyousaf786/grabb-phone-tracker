@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,8 @@ export default function PaywallScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const horizontalPadding = Math.max(22, Math.min(34, width * 0.07));
+  const privacyPolicyUrl = 'https://sites.google.com/view/phone-grab-tracker-pro/home';
+  const termsOfUseUrl = 'https://sites.google.com/view/phone-grab-tracker-pro-terms/home';
 
   const [products, setProducts] = useState<Subscription[]>([]);
   const [selectedSku, setSelectedSku] = useState<string | null>(
@@ -95,6 +98,14 @@ export default function PaywallScreen() {
       Alert.alert('Error', 'Could not restore purchases.');
     } finally {
       setRestoring(false);
+    }
+  }
+
+  async function openLink(url: string) {
+    try {
+      await Linking.openURL(url);
+    } catch (e) {
+      Alert.alert('Error', 'Could not open the link.');
     }
   }
 
@@ -285,8 +296,22 @@ export default function PaywallScreen() {
           </Pressable>
 
           <Text style={[styles.terms, { color: colors.textMuted }]}>
-            Subscriptions auto-renew. Cancel anytime in App Store settings.
+            Subscriptions auto-renew. You can cancel anytime in your App Store settings.
           </Text>
+
+          <Text style={[styles.legalHint, { color: colors.textMuted }]}>
+            By continuing, you agree to our legal terms below.
+          </Text>
+
+          <View style={styles.legalLinksRow}>
+            <Pressable onPress={() => openLink(privacyPolicyUrl)} hitSlop={8}>
+              <Text style={[styles.legalLinkText, { color: colors.primary }]}>Privacy Policy</Text>
+            </Pressable>
+            <Text style={[styles.legalLinkSeparator, { color: colors.textMuted }]}>•</Text>
+            <Pressable onPress={() => openLink(termsOfUseUrl)} hitSlop={8}>
+              <Text style={[styles.legalLinkText, { color: colors.primary }]}>Terms of Use</Text>
+            </Pressable>
+          </View>
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
@@ -364,4 +389,13 @@ const styles = StyleSheet.create({
   restoreBtn: { alignItems: 'center', paddingVertical: 8, marginBottom: 12 },
   restoreText: { fontSize: 15, fontWeight: '600' },
   terms: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  legalHint: { fontSize: 12, textAlign: 'center', lineHeight: 18, marginTop: 4 },
+  legalLinksRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  legalLinkText: { fontSize: 13, fontWeight: '600' },
+  legalLinkSeparator: { fontSize: 13, marginHorizontal: 10 },
 });

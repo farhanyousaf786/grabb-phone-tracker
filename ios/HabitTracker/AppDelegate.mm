@@ -43,10 +43,10 @@
         stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]]
     : @"8081";
 
-  // Try Wi‑Fi IP first, then localhost (works over USB with: iproxy 8081 8081)
+  // Prefer localhost so USB tunneling with iproxy works first.
   NSArray<NSString *> *hostPorts = @[
-    [NSString stringWithFormat:@"%@:%@", ip, port],
     [NSString stringWithFormat:@"localhost:%@", port],
+    [NSString stringWithFormat:@"%@:%@", ip, port],
   ];
 
   for (NSString *hostPort in hostPorts) {

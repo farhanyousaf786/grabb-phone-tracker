@@ -273,15 +273,6 @@ class SubscriptionServiceClass {
       await this.loadProducts();
     }
 
-    const loadedProduct = this.products.find((p) => p.productId === productId);
-    if (!loadedProduct) {
-      return {
-        success: false,
-        error:
-          'Subscription plans could not be loaded from Apple.\n\nRebuild the app (npm run ios:device:usb), then try again. If it still fails, confirm subscriptions exist in App Store Connect for bundle ID com.jamesonsinger.habittracker.',
-      };
-    }
-
     try {
       await requestSubscription({ sku: productId });
       return { success: true };
@@ -293,7 +284,7 @@ class SubscriptionServiceClass {
         return {
           success: false,
           error:
-            'Apple rejected this subscription ID. Rebuild the app, then try again. Product IDs must match App Store Connect exactly.',
+            'Apple has not activated these subscriptions yet.\n\nFor dev testing: rebuild the app once (npm run ios:device:usb), then try again.\n\nFor App Store approval: this is OK — upload a production build and resubmit. Apple tests subscriptions during review.',
         };
       }
 
