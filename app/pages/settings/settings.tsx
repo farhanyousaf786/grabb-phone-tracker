@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, View, Switch, Pressable } from 'react-native';
+import { Alert, Linking, SafeAreaView, ScrollView, StyleSheet, Text, View, Switch, Pressable } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,8 @@ import { NightCheckInModal } from '@/components/home/NightCheckInModal';
 export default function SettingsScreen() {
   const { toggleTheme, isDark, colors } = useTheme();
   const router = useRouter();
+  const privacyPolicyUrl = 'https://sites.google.com/view/phone-grab-tracker-pro/home';
+  const termsOfUseUrl = 'https://sites.google.com/view/phone-grab-tracker-pro-terms/home';
   const [trackingWhyEnabled, setTrackingWhyEnabled] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>({
     limitAlerts: true,
@@ -83,6 +85,14 @@ export default function SettingsScreen() {
       setShowCheckInModal(true);
     } else {
       setShowNightCheckInModal(true);
+    }
+  }
+
+  async function openLink(url: string) {
+    try {
+      await Linking.openURL(url);
+    } catch (e) {
+      Alert.alert('Error', 'Could not open the link.');
     }
   }
 
@@ -303,6 +313,35 @@ export default function SettingsScreen() {
                 thumbColor="#FFFFFF"
                style={{ transform: [{ scale: 0.85 }] }} />
             </View>
+          </View>
+
+          <View style={[styles.section, { backgroundColor: colors.surface, borderColor: '#8B5CF6' + '22' }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Legal</Text>
+            <Pressable onPress={() => openLink(privacyPolicyUrl)} style={styles.settingRow}>
+              <View style={styles.settingLabelWrap}>
+                <View style={[styles.iconWrap, { backgroundColor: colors.primary + '14' }]}>
+                  <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={[styles.settingLabel, { color: colors.text }]}>Privacy Policy</Text>
+                  <Text style={[styles.settingDescription, { color: colors.textMuted }]}>How your data is handled</Text>
+                </View>
+              </View>
+              <Ionicons name="open-outline" size={20} color={colors.textMuted} />
+            </Pressable>
+
+            <Pressable onPress={() => openLink(termsOfUseUrl)} style={[styles.settingRow, styles.settingRowStacked]}>
+              <View style={styles.settingLabelWrap}>
+                <View style={[styles.iconWrap, { backgroundColor: colors.primary + '14' }]}>
+                  <Ionicons name="document-text" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={[styles.settingLabel, { color: colors.text }]}>Terms of Use</Text>
+                  <Text style={[styles.settingDescription, { color: colors.textMuted }]}>Subscription and app terms</Text>
+                </View>
+              </View>
+              <Ionicons name="open-outline" size={20} color={colors.textMuted} />
+            </Pressable>
           </View>
 
           <View style={styles.footer}>

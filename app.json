@@ -18,7 +18,9 @@
       "bundleIdentifier": "com.jamesonsinger.habittracker",
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "Allow Phone Grab Tracker to connect to the development server on your local network while testing.",
-        "NSBonjourServices": ["_http._tcp"]
+        "NSBonjourServices": [
+          "_http._tcp"
+        ]
       },
       "entitlements": {
         "com.apple.security.application-groups": [
@@ -29,7 +31,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#F7F8FA"
-      }
+      },
+      "package": "com.jamesonsinger.habittracker"
     },
     "web": {
       "bundler": "metro",

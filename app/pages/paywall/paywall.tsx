@@ -29,9 +29,7 @@ export default function PaywallScreen() {
   const termsOfUseUrl = 'https://sites.google.com/view/phone-grab-tracker-pro-terms/home';
 
   const [products, setProducts] = useState<Subscription[]>([]);
-  const [selectedSku, setSelectedSku] = useState<string | null>(
-    SUBSCRIPTION_PRODUCTS[0] || null
-  );
+  const [selectedSku, setSelectedSku] = useState<string | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -53,17 +51,33 @@ export default function PaywallScreen() {
     setLoadingProducts(true);
     try {
       await SubscriptionService.prepareStore();
-      setProducts(SubscriptionService.getProducts());
+      const loadedProducts = SubscriptionService.getProducts();
+      setProducts(loadedProducts);
+      setSelectedSku(loadedProducts[0]?.productId ?? null);
     } finally {
       setLoadingProducts(false);
     }
   }
 
   async function handleSubscribe() {
-    if (!selectedSku) return;
     setLoading(true);
     try {
-      const result = await SubscriptionService.subscribe(selectedSku);
+      let sku = selectedSku;
+      if (!sku || !products.some((p) => p.productId === sku)) {
+        await loadData();
+        const loadedProducts = SubscriptionService.getProducts();
+        sku = loadedProducts[0]?.productId ?? null;
+      }
+
+      if (!sku) {
+        Alert.alert(
+          'Unable to Subscribe',
+          'Subscription products could not be loaded from the App Store. Please try again in a few minutes.'
+        );
+        return;
+      }
+
+      const result = await SubscriptionService.subscribe(sku);
 
       if (result.success) {
         const status = await SubscriptionService.getStatus();
@@ -120,6 +134,10 @@ export default function PaywallScreen() {
   ];
 
   const isYearly = (sku: string) => sku.includes('yearly');
+  const sortedProducts = [...products].sort((a, b) => {
+    if (isYearly(a.productId) === isYearly(b.productId)) return 0;
+    return isYearly(a.productId) ? 1 : -1;
+  });
   const getPrice = (p: Subscription) => {
     const subscription = p as Record<string, any>;
     return subscription.localizedPrice || subscription.price || subscription.subscriptionOfferDetails?.[0]?.pricingPhases?.pricingPhaseList?.[0]?.formattedPrice || '';
@@ -182,7 +200,7 @@ export default function PaywallScreen() {
             </View>
           )}
 
-          {products.map((p) => {
+          {sortedProducts.map((p) => {
             const selected = selectedSku === p.productId;
             const yearly = isYearly(p.productId);
             return (
@@ -221,55 +239,14 @@ export default function PaywallScreen() {
           })}
 
           {products.length === 0 && !loadingProducts && Platform.OS !== 'web' && (
-            <>
-              {/* Fallback pricing until StoreKit loads on subscribe */}
-              <Pressable
-                onPress={() => setSelectedSku(SUBSCRIPTION_PRODUCTS[0])}
-                style={[
-                  styles.planCard,
-                  {
-                    borderColor: selectedSku === SUBSCRIPTION_PRODUCTS[0] ? colors.primary : colors.border,
-                    backgroundColor: selectedSku === SUBSCRIPTION_PRODUCTS[0] ? (isDark ? '#2A1F3D' : '#F5F3FF') : colors.surface,
-                  },
-                ]}
-              >
-                <View style={styles.planRow}>
-                  <View style={styles.radio}>
-                    {selectedSku === SUBSCRIPTION_PRODUCTS[0] && <View style={[styles.radioFill, { backgroundColor: colors.primary }]} />}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.planName, { color: colors.text }]}>Monthly</Text>
-                    <Text style={[styles.planSub, { color: colors.textMuted }]}>Billed monthly</Text>
-                  </View>
-                  <Text style={[styles.planPrice, { color: colors.text }]}>$4.99/mo</Text>
-                </View>
+            <View style={[styles.unavailableCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+              <Text style={[styles.noProducts, { color: colors.textMuted }]}>
+                Subscription plans are temporarily unavailable from the App Store.
+              </Text>
+              <Pressable onPress={loadData} style={[styles.retryBtn, { backgroundColor: colors.primary + '12' }]}>
+                <Text style={[styles.retryBtnText, { color: colors.primary }]}>Retry Loading Plans</Text>
               </Pressable>
-
-              <Pressable
-                onPress={() => setSelectedSku(SUBSCRIPTION_PRODUCTS[1])}
-                style={[
-                  styles.planCard,
-                  {
-                    borderColor: selectedSku === SUBSCRIPTION_PRODUCTS[1] ? colors.primary : colors.border,
-                    backgroundColor: selectedSku === SUBSCRIPTION_PRODUCTS[1] ? (isDark ? '#2A1F3D' : '#F5F3FF') : colors.surface,
-                  },
-                ]}
-              >
-                <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.badgeText}>Save 30%</Text>
-                </View>
-                <View style={styles.planRow}>
-                  <View style={styles.radio}>
-                    {selectedSku === SUBSCRIPTION_PRODUCTS[1] && <View style={[styles.radioFill, { backgroundColor: colors.primary }]} />}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.planName, { color: colors.text }]}>Yearly</Text>
-                    <Text style={[styles.planSub, { color: colors.textMuted }]}>Billed annually</Text>
-                  </View>
-                  <Text style={[styles.planPrice, { color: colors.text }]}>$39.99/yr</Text>
-                </View>
-              </Pressable>
-            </>
+            </View>
           )}
         </Animated.View>
 
@@ -278,7 +255,7 @@ export default function PaywallScreen() {
           <Pressable
             onPress={handleSubscribe}
             disabled={loading || !selectedSku}
-            style={[styles.subscribeBtn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
+            style={[styles.subscribeBtn, { backgroundColor: colors.primary, opacity: loading || !selectedSku ? 0.7 : 1 }]}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -347,6 +324,19 @@ const styles = StyleSheet.create({
   loadingProducts: { alignItems: 'center', paddingVertical: 16, marginBottom: 8 },
   loadingProductsText: { fontSize: 14, marginTop: 8 },
   noProducts: { fontSize: 14, textAlign: 'center', marginBottom: 12 },
+  unavailableCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  retryBtn: {
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  retryBtnText: { fontSize: 13, fontWeight: '800' },
   planCard: {
     borderRadius: 16,
     borderWidth: 2,
