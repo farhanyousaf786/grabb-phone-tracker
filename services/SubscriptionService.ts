@@ -322,6 +322,25 @@ class SubscriptionServiceClass {
     }
   }
 
+  async syncSubscriptionFromStore(): Promise<boolean> {
+    if (Platform.OS === 'web') return false;
+    await this.prepareStore();
+    try {
+      const purchases = await getAvailablePurchases();
+      const subPurchase = purchases.find((p) =>
+        SUBSCRIPTION_PRODUCTS.includes(p.productId)
+      );
+      if (subPurchase) {
+        await this.activateSubscription(subPurchase.productId);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.log('Sync subscription error:', e);
+      return false;
+    }
+  }
+
   async canAccessPremiumFeatures(): Promise<boolean> {
     const status = await this.getStatus();
     return status.isInTrial || status.isSubscribed;

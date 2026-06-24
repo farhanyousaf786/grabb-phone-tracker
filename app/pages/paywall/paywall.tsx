@@ -27,6 +27,7 @@ export default function PaywallScreen() {
   const horizontalPadding = Math.max(22, Math.min(34, width * 0.07));
   const privacyPolicyUrl = 'https://sites.google.com/view/phone-grab-tracker-pro/home';
   const termsOfUseUrl = 'https://sites.google.com/view/phone-grab-tracker-pro-terms/home';
+  const manageSubscriptionsUrl = 'https://apps.apple.com/account/subscriptions';
 
   const [products, setProducts] = useState<Subscription[]>([]);
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
@@ -34,16 +35,17 @@ export default function PaywallScreen() {
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [trialDays, setTrialDays] = useState(0);
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
   async function loadData() {
-    const status = await SubscriptionService.getStatus();
-    setTrialDays(status.trialDaysRemaining);
-
     if (Platform.OS === 'web') {
+      const status = await SubscriptionService.getStatus();
+      setTrialDays(status.trialDaysRemaining);
+      setIsSubscribed(status.isSubscribed);
       setLoadingProducts(false);
       return;
     }
@@ -51,6 +53,10 @@ export default function PaywallScreen() {
     setLoadingProducts(true);
     try {
       await SubscriptionService.prepareStore();
+      await SubscriptionService.syncSubscriptionFromStore();
+      const status = await SubscriptionService.getStatus();
+      setTrialDays(status.trialDaysRemaining);
+      setIsSubscribed(status.isSubscribed);
       const loadedProducts = SubscriptionService.getProducts();
       setProducts(loadedProducts);
       setSelectedSku(loadedProducts[0]?.productId ?? null);
@@ -80,13 +86,21 @@ export default function PaywallScreen() {
       const result = await SubscriptionService.subscribe(sku);
 
       if (result.success) {
-        const status = await SubscriptionService.getStatus();
-        if (status.isSubscribed) {
-          Alert.alert('Welcome!', 'Your subscription is active.');
-          router.replace('/pages/home/home');
-          return;
+        for (let attempt = 0; attempt < 6; attempt++) {
+          const synced = await SubscriptionService.syncSubscriptionFromStore();
+          const status = await SubscriptionService.getStatus();
+          if (synced || status.isSubscribed) {
+            setIsSubscribed(true);
+            Alert.alert('Welcome!', 'Your subscription is active.');
+            router.replace('/pages/home/home');
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 700));
         }
-        // Purchase sheet may still be open — wait for purchaseUpdatedListener.
+        Alert.alert(
+          'Purchase Processing',
+          'Your purchase was received by Apple. If access is not unlocked yet, tap Restore Purchases or reopen the app.'
+        );
         return;
       }
 
@@ -103,6 +117,7 @@ export default function PaywallScreen() {
     try {
       const restored = await SubscriptionService.restorePurchases();
       if (restored) {
+        setIsSubscribed(true);
         Alert.alert('Restored', 'Your subscription has been restored.');
         router.replace('/pages/home/home');
       } else {
@@ -165,7 +180,9 @@ export default function PaywallScreen() {
           </View>
           <Text style={[styles.title, { color: colors.text }]}>Unlock Full Access</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            {trialDays > 0
+            {isSubscribed
+              ? 'Your subscription is active.'
+              : trialDays > 0
               ? `${trialDays} day${trialDays > 1 ? 's' : ''} left in your free trial`
               : 'Your free trial has ended. Subscribe to continue.'}
           </Text>
@@ -191,7 +208,27 @@ export default function PaywallScreen() {
         <Animated.View entering={FadeInUp.delay(300).duration(500)} style={styles.pricingWrap}>
           <Text style={[styles.pricingTitle, { color: colors.text }]}>Choose your plan</Text>
 
-          {loadingProducts && (
+          {isSubscribed && (
+            <View style={[styles.activeSubscriptionCard, { borderColor: colors.primary, backgroundColor: colors.primary + '12' }]}>
+              <View style={styles.activeSubscriptionHeader}>
+                <View style={[styles.activeSubscriptionIcon, { backgroundColor: colors.primary }]}>
+                  <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.activeSubscriptionTitle, { color: colors.text }]}>Subscription Active</Text>
+                  <Text style={[styles.activeSubscriptionText, { color: colors.textMuted }]}>
+                    Premium access is unlocked on this account.
+                  </Text>
+                </View>
+              </View>
+              <Pressable onPress={() => openLink(manageSubscriptionsUrl)} style={[styles.manageSubscriptionBtn, { backgroundColor: colors.primary }]}>
+                <Text style={styles.manageSubscriptionText}>Manage Subscription</Text>
+                <Ionicons name="open-outline" size={16} color="#FFFFFF" />
+              </Pressable>
+            </View>
+          )}
+
+          {loadingProducts && !isSubscribed && (
             <View style={styles.loadingProducts}>
               <ActivityIndicator color={colors.primary} />
               <Text style={[styles.loadingProductsText, { color: colors.textMuted }]}>
@@ -200,7 +237,7 @@ export default function PaywallScreen() {
             </View>
           )}
 
-          {sortedProducts.map((p) => {
+          {!isSubscribed && sortedProducts.map((p) => {
             const selected = selectedSku === p.productId;
             const yearly = isYearly(p.productId);
             return (
@@ -238,7 +275,7 @@ export default function PaywallScreen() {
             );
           })}
 
-          {products.length === 0 && !loadingProducts && Platform.OS !== 'web' && (
+          {!isSubscribed && products.length === 0 && !loadingProducts && Platform.OS !== 'web' && (
             <View style={[styles.unavailableCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
               <Text style={[styles.noProducts, { color: colors.textMuted }]}>
                 Subscription plans are temporarily unavailable from the App Store.
@@ -254,13 +291,13 @@ export default function PaywallScreen() {
         <Animated.View entering={FadeInUp.delay(400).duration(500)} style={styles.ctaWrap}>
           <Pressable
             onPress={handleSubscribe}
-            disabled={loading || !selectedSku}
-            style={[styles.subscribeBtn, { backgroundColor: colors.primary, opacity: loading || !selectedSku ? 0.7 : 1 }]}
+            disabled={loading || !selectedSku || isSubscribed}
+            style={[styles.subscribeBtn, { backgroundColor: colors.primary, opacity: loading || !selectedSku || isSubscribed ? 0.7 : 1 }]}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.subscribeText}>Subscribe Now</Text>
+              <Text style={styles.subscribeText}>{isSubscribed ? 'Subscription Active' : 'Subscribe Now'}</Text>
             )}
           </Pressable>
 
@@ -324,6 +361,38 @@ const styles = StyleSheet.create({
   loadingProducts: { alignItems: 'center', paddingVertical: 16, marginBottom: 8 },
   loadingProductsText: { fontSize: 14, marginTop: 8 },
   noProducts: { fontSize: 14, textAlign: 'center', marginBottom: 12 },
+  activeSubscriptionCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+  },
+  activeSubscriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  activeSubscriptionIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeSubscriptionTitle: { fontSize: 16, fontWeight: '800' },
+  activeSubscriptionText: { fontSize: 13, marginTop: 2 },
+  manageSubscriptionBtn: {
+    alignSelf: 'stretch',
+    borderRadius: 12,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  manageSubscriptionText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   unavailableCard: {
     borderRadius: 16,
     borderWidth: 1,
