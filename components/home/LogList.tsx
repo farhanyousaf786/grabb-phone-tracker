@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from 'react-native';
 import { TRIGGER_COLORS, TriggerName } from '@/constants/mockData';
+import { getLocalDateString } from '@/utils/date';
 import { GrabLog } from '@/utils/storage';
 import { useTheme } from '@/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,7 +40,7 @@ export const LogList: React.FC<LogListProps> = ({
   logs, 
   title = "Today's log", 
   limit = 40, 
-  selectedDate = new Date().toISOString().split('T')[0],
+  selectedDate = getLocalDateString(),
   todayIntentionTrigger,
 }) => {
   const { colors, isDark } = useTheme();

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions } from 'react
 import { useTheme } from '@/context/ThemeContext';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { getLocalDateString } from '@/utils/date';
 
 interface GrabEntry {
   timestamp: number;
@@ -96,7 +97,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
       for (let i = 0; i < diffDays; i++) {
         const curr = new Date(startDate);
         curr.setDate(startDate.getDate() + i);
-        dayList.push(curr.toISOString().split('T')[0]);
+        dayList.push(getLocalDateString(curr));
         dayLabels.push(
           curr.toLocaleDateString('en-US', { weekday: 'narrow', month: 'numeric', day: 'numeric' })
         );
@@ -106,7 +107,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
       let peak = 0;
       grabs.forEach((g) => {
         const gDate = new Date(g.timestamp);
-        const dateStr = gDate.toISOString().split('T')[0];
+        const dateStr = getLocalDateString(gDate);
         const dayIdx = dayList.indexOf(dateStr);
         if (dayIdx !== -1) {
           const hour = gDate.getHours();
@@ -130,7 +131,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
       for (let i = 0; i < diffDays; i++) {
         const curr = new Date(startDate);
         curr.setDate(startDate.getDate() + i);
-        dayList.push(curr.toISOString().split('T')[0]);
+        dayList.push(getLocalDateString(curr));
         dayLabels.push(
           curr.toLocaleDateString('en-US', { weekday: 'narrow', month: 'numeric', day: 'numeric' })
         );
@@ -140,7 +141,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
       let peak = 0;
       grabs.forEach((g) => {
         const gDate = new Date(g.timestamp);
-        const dateStr = gDate.toISOString().split('T')[0];
+        const dateStr = getLocalDateString(gDate);
         const dayIdx = dayList.indexOf(dateStr);
         if (dayIdx !== -1) {
           gridData[dayIdx][0]++;

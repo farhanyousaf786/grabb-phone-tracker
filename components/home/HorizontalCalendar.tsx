@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Rect, Defs, ClipPath } from 'react-native-svg';
 import { useTheme } from '@/context/ThemeContext';
+import { getLocalDateString } from '@/utils/date';
 
 const AttemptPill: React.FC<{ size: number; count: number; limit: number; isActive: boolean; isDark: boolean }> = ({ size, count, limit, isActive, isDark }) => {
   const safeLimit = limit > 0 ? limit : 40;
@@ -98,7 +99,7 @@ const DoneIcon: React.FC<{ size: number; color: string }> = ({ size, color }) =>
 export const HorizontalCalendar: React.FC<HorizontalCalendarProps> = ({ days, selectedDate, onSelectDate, dailyStats }) => {
   const { colors, isDark } = useTheme();
   const [isExpanded, setIsExpanded] = React.useState(false);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateString();
   const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   const scrollViewRef = React.useRef<ScrollView>(null);
@@ -142,7 +143,7 @@ export const HorizontalCalendar: React.FC<HorizontalCalendarProps> = ({ days, se
         dayNum: d.getDate(),
         dayName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()],
         isToday: false,
-        fullDate: d.toISOString().split('T')[0],
+        fullDate: getLocalDateString(d),
         isCurrentMonth: false,
       });
     }
@@ -154,7 +155,7 @@ export const HorizontalCalendar: React.FC<HorizontalCalendarProps> = ({ days, se
         dayNum: i,
         dayName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()],
         isToday: d.toDateString() === new Date().toDateString(),
-        fullDate: d.toISOString().split('T')[0],
+        fullDate: getLocalDateString(d),
         isCurrentMonth: true,
       });
     }

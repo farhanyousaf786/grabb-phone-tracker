@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExtensionStorage } from '@bacons/apple-targets';
 import HabitTrackerModule from 'habit-tracker-module';
+import { getLocalDateString } from '@/utils/date';
 
 export interface GrabLog {
   id: string;
@@ -86,7 +87,7 @@ try {
 
 async function syncWidgetStats() {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const stats = await storage.getDailyStats(today);
     const limit = await storage.getDailyLimit();
     if (HabitTrackerModule) {
@@ -104,7 +105,7 @@ async function syncWidgetStats() {
 export const storage = {
   async addGrab(trigger: string, customDateStr?: string): Promise<GrabLog> {
     try {
-      const dateStr = customDateStr || new Date().toISOString().split('T')[0];
+      const dateStr = customDateStr || getLocalDateString();
       
       // Calculate backdated timestamp preserving current time of day for high-fidelity peak-hour analysis
       let timestamp = Date.now();
@@ -152,7 +153,7 @@ export const storage = {
 
   async getTodayGrabs(): Promise<GrabLog[]> {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString();
       const allGrabs = await storage.getAllGrabs();
       return allGrabs.filter(g => g.date === today);
     } catch (error) {
@@ -398,7 +399,7 @@ export const storage = {
   // Intention is stored with today's date as suffix — auto-resets every morning
   async setTodayIntention(intentionKey: string): Promise<void> {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString();
       await AsyncStorage.setItem(`${TODAY_INTENTION_KEY}_${today}`, intentionKey);
     } catch (error) {
       console.error('Error setting today intention:', error);
@@ -407,7 +408,7 @@ export const storage = {
 
   async getTodayIntention(): Promise<string | null> {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString();
       return await AsyncStorage.getItem(`${TODAY_INTENTION_KEY}_${today}`);
     } catch (error) {
       console.error('Error getting today intention:', error);

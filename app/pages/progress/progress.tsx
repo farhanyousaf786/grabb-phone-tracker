@@ -8,6 +8,7 @@ import Animated, { FadeIn, FadeInUp, FadeOut, ZoomIn, ZoomOut } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityHeatmap } from '@/components/progress/ActivityHeatmap';
 import { RecordsLog } from '@/components/progress/RecordsLog';
+import { getLocalDateString } from '@/utils/date';
 
 const TRIGGER_ICONS: Record<string, string> = {
   Habit: 'sync-sharp',
@@ -59,12 +60,12 @@ export default function ProgressScreen() {
       setLimit(dailyLimit);
 
       // Default custom start/end if empty
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateString();
       if (!customEnd) setCustomEnd(todayStr);
       if (!customStart) {
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 6);
-        setCustomStart(weekAgo.toISOString().split('T')[0]);
+        setCustomStart(getLocalDateString(weekAgo));
       }
 
       calculatePeriodData(grabs, filterMode, customStart || todayStr, customEnd || todayStr, dailyLimit);
@@ -113,7 +114,7 @@ export default function ProgressScreen() {
     for (let i = 0; i < diffDays; i++) {
       const curr = new Date(startDate);
       curr.setDate(startDate.getDate() + i);
-      const dateStr = curr.toISOString().split('T')[0];
+      const dateStr = getLocalDateString(curr);
       
       const count = grabs.filter(g => g.date === dateStr).length;
       
@@ -202,7 +203,7 @@ export default function ProgressScreen() {
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek);
       d.setDate(startOfWeek.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = getLocalDateString(d);
       const dayGrabsCount = grabs.filter(g => g.date === dateStr).length;
       weekCounts.push(dayGrabsCount);
       if (dayGrabsCount < minGrabs) {
@@ -218,7 +219,7 @@ export default function ProgressScreen() {
     for (let i = 0; i < elapsedDays; i++) {
       const d = new Date(startOfWeek);
       d.setDate(startOfWeek.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = getLocalDateString(d);
       const dayGrabs = grabs.filter(g => g.date === dateStr);
       const hasMorningGrabs = dayGrabs.some(g => new Date(g.timestamp).getHours() < 12);
       if (dayGrabs.length > 0 && !hasMorningGrabs) {
@@ -441,9 +442,6 @@ export default function ProgressScreen() {
           customEnd={customEnd}
         />
 
-        {/* Grab Records Log */}
-        <RecordsLog grabs={allGrabs} />
-
         {/* Cognitive Insights Card */}
         <Animated.View entering={FadeInUp.delay(280).duration(500)} style={[styles.card, { backgroundColor: colors.surface, borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderWidth: 1 }]}>
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>BEHAVIORAL INSIGHTS</Text>
@@ -502,6 +500,9 @@ export default function ProgressScreen() {
             })
           )}
         </Animated.View>
+
+        {/* Grab Records Log */}
+        <RecordsLog grabs={allGrabs} />
 
       </ScrollView>
 

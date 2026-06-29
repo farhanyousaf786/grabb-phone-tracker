@@ -15,6 +15,7 @@ import { DiagnosticsGrid } from '@/components/plan/DiagnosticsGrid';
 import { LimitModifier } from '@/components/plan/LimitModifier';
 import { QuestRoadmap } from '@/components/plan/QuestRoadmap';
 import { FocusBlocks } from '@/components/plan/FocusBlocks';
+import { getLocalDateString } from '@/utils/date';
 
 export default function PlanScreen() {
   const { colors, isDark } = useTheme();
@@ -129,10 +130,10 @@ export default function PlanScreen() {
 
       // Streak calculation
       let streakVal = 0;
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateString();
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      const yesterdayStr = getLocalDateString(yesterday);
 
       let checkDate = new Date();
       if (!grouped[todayStr] && grouped[yesterdayStr]) {
@@ -140,7 +141,7 @@ export default function PlanScreen() {
       }
 
       while (true) {
-        const dateStr = checkDate.toISOString().split('T')[0];
+        const dateStr = getLocalDateString(checkDate);
         if (grouped[dateStr] !== undefined && grouped[dateStr] <= activePhaseLimit) {
           streakVal++;
           checkDate.setDate(checkDate.getDate() - 1);

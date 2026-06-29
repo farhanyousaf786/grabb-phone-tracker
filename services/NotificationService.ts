@@ -4,6 +4,16 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const NOTIF_IDS_KEY = 'habit_tracker_notif_ids';
+const NOTIF_HISTORY_KEY = 'habit_tracker_notif_history';
+
+export interface NotificationLog {
+  id: string;
+  title: string | null;
+  body: string | null;
+  date: number;
+  type?: string;
+  read: boolean;
+}
 
 export enum NotifType {
   APPROACHING_LIMIT = 'approaching_limit',
@@ -111,8 +121,8 @@ class NotificationServiceClass {
       NotifType.APPROACHING_LIMIT,
       minutesFromNow > 0 ? { type: SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: minutesFromNow * 60 } : null,
       {
-        title: 'Getting Close',
-        body: `You've logged ${count} of ${limit} grabs today. Slow down to stay on track.`,
+        title: 'Building Awareness',
+        body: `You've already caught ${count} unconscious grabs today. That's a great start.`,
         sound: true,
       }
     );
@@ -124,8 +134,8 @@ class NotificationServiceClass {
       NotifType.LIMIT_EXCEEDED,
       null,
       {
-        title: 'Limit Exceeded',
-        body: `You've reached ${count} grabs — that's ${count - limit} over your ${limit} goal. Take a breather.`,
+        title: 'Great Catch',
+        body: `You caught ${count} unconscious grabs today. Most people never see theirs. See if anything was bothering you today.`,
         sound: true,
       }
     );
@@ -289,6 +299,59 @@ class NotificationServiceClass {
     const map = await this.getStoredIds();
     delete map[type];
     await AsyncStorage.setItem(NOTIF_IDS_KEY, JSON.stringify(map));
+  }
+
+  // --- History ---
+
+  async getHistory(): Promise<NotificationLog[]> {
+    try {
+      const raw = await AsyncStorage.getItem(NOTIF_HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async saveToHistory(notification: Notifications.Notification) {
+    try {
+      const history = await this.getHistory();
+      const newLog: NotificationLog = {
+        id: notification.request.identifier,
+        title: notification.request.content.title,
+        body: notification.request.content.body,
+        date: notification.date,
+        type: notification.request.content.data?.type as string | undefined,
+        read: false,
+      };
+
+      // Check if it already exists to prevent duplicates
+      if (history.find((log) => log.id === newLog.id)) {
+        return;
+      }
+
+      history.unshift(newLog);
+      
+      // Keep only latest 50 notifications
+      const cappedHistory = history.slice(0, 50);
+      await AsyncStorage.setItem(NOTIF_HISTORY_KEY, JSON.stringify(cappedHistory));
+    } catch (e) {
+      console.error('Failed to save notification history', e);
+    }
+  }
+
+  async getUnreadCount(): Promise<number> {
+    const history = await this.getHistory();
+    return history.filter(n => !n.read).length;
+  }
+
+  async markAllAsRead(): Promise<void> {
+    const history = await this.getHistory();
+    const updated = history.map(n => ({ ...n, read: true }));
+    await AsyncStorage.setItem(NOTIF_HISTORY_KEY, JSON.stringify(updated));
+  }
+
+  async clearHistory(): Promise<void> {
+    await AsyncStorage.removeItem(NOTIF_HISTORY_KEY);
   }
 }
 

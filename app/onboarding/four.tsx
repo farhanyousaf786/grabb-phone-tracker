@@ -1,9 +1,9 @@
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { storage } from '@/utils/storage';
 import { SubscriptionService } from '@/services/SubscriptionService';
 
-export default function OnboardingThreeScreen() {
+export default function OnboardingFourScreen() {
   const { height, width } = useWindowDimensions();
   const compact = height < 760;
   const horizontalPadding = Math.max(22, Math.min(34, width * 0.07));
@@ -26,33 +26,30 @@ export default function OnboardingThreeScreen() {
         <View style={[styles.progressLines, { paddingBottom: compact ? 18 : 28 }]}>
           <View style={styles.line} />
           <View style={styles.line} />
-          <View style={styles.lineActive} />
           <View style={styles.line} />
+          <View style={styles.lineActive} />
         </View>
 
-        <View style={[styles.hero, { minHeight: compact ? 240 : 300, marginBottom: compact ? 20 : 32 }]}>
+        <View style={[styles.hero, { minHeight: compact ? 240 : 300, marginBottom: compact ? 20 : 32, backgroundColor: 'transparent' }]}>
           <View style={[styles.reminderCard, { width: cardSize, height: cardSize, borderRadius: cardSize * 0.17 }]}>
-            <Text style={[styles.bell, { fontSize: compact ? 62 : 78 }]}>🔔</Text>
+            <Text style={[styles.bell, { fontSize: compact ? 62 : 78 }]}>📱</Text>
             <View style={styles.reminderLineOne} />
             <View style={styles.reminderLineTwo} />
           </View>
-          <View style={styles.lockCircle}>
-            <Text style={styles.lock}>⌾</Text>
-          </View>
-          <Text style={styles.scribbleOne}>⌁</Text>
-          <Text style={styles.scribbleTwo}>✦</Text>
         </View>
 
         <View style={[styles.copy, { marginBottom: compact ? 18 : 28 }]}>
-          <Text style={styles.kicker}>Private by default</Text>
-          <Text style={[styles.title, { fontSize: compact ? 36 : 44, lineHeight: compact ? 38 : 46 }]}>Stay present with reminders</Text>
-          <Text style={[styles.description, { fontSize: compact ? 15 : 17, lineHeight: compact ? 22 : 25 }]}>Use local prompts and on-device storage to keep your routine simple, private, and offline-ready.</Text>
+          <Text style={styles.kicker}>Home screen tracking</Text>
+          <Text style={[styles.title, { fontSize: compact ? 36 : 44, lineHeight: compact ? 38 : 46 }]}>Add the Grabb Widget</Text>
+          <Text style={[styles.description, { fontSize: compact ? 15 : 17, lineHeight: compact ? 22 : 25 }]}>Long press your iOS home screen, tap the + in the top left, and search for Grabb. Track your grabs instantly without even opening the app.</Text>
         </View>
       </ScrollView>
 
       <View style={[styles.footer, { paddingHorizontal: horizontalPadding, paddingTop: compact ? 12 : 16, paddingBottom: compact ? 20 : 28 }]}>
-        <Text style={styles.step}>03 of 04</Text>
-        <Link href="/onboarding/four" style={styles.button}>Next</Link>
+        <Text style={styles.step}>04 of 04</Text>
+        <Pressable onPress={finishOnboarding} style={styles.button}>
+          <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '900' }}>Start App</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );

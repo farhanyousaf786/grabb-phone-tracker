@@ -8,6 +8,7 @@ import { NotificationService, NotifType } from '@/services/NotificationService';
 import Animated, { FadeIn, FadeInUp, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { getLimitLevelLabel, getLimitLevelColor } from '@/utils/level';
 
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { HorizontalCalendar } from '@/components/home/HorizontalCalendar';
@@ -25,6 +26,7 @@ import { StreakTracker } from '@/components/home/StreakTracker';
 
 import { useTheme } from '@/context/ThemeContext';
 import { SubscriptionService } from '@/services/SubscriptionService';
+import { getLocalDateString } from '@/utils/date';
 
 const hasShownExpiredModalThisSession = { value: false };
 const hasShownAutoModalThisSession = { value: false };
@@ -40,7 +42,7 @@ export default function HomeScreen() {
   const [lastTrigger, setLastTrigger] = useState<TriggerName | null>(null);
   const [log, setLog] = useState<GrabLog[]>([]);
   const [limit, setLimit] = useState(DAILY_LIMIT_DEFAULT);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [userName, setUserName] = useState<string | null>(null);
   const [showDailyTip, setShowDailyTip] = useState(true);
   const [showHonestyAlert, setShowHonestyAlert] = useState(false);
@@ -96,7 +98,7 @@ export default function HomeScreen() {
   const daysInMonth = Array.from({ length: 13 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (10 - i)); // Show 10 days before today and 2 days after today
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = getLocalDateString(d);
     return {
       dayNum: d.getDate(),
       dayName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()],
@@ -127,7 +129,7 @@ export default function HomeScreen() {
   }
 
   async function prepareMorningCheckIn(force = false) {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     const lastCheckIn = await storage.getLastCheckInDate();
     const morningHour = await storage.getMorningCheckInHour();
     const currentHour = new Date().getHours();
@@ -184,7 +186,7 @@ export default function HomeScreen() {
   }
 
   async function prepareNightCheckIn(force = false) {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     const lastNightCheckIn = await storage.getLastNightCheckInDate();
     const currentHour = new Date().getHours();
     const eveningHour = await storage.getEveningCheckInHour();
@@ -224,7 +226,7 @@ export default function HomeScreen() {
 
   async function handleCheckIn(intentionKey: string) {
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateString();
       await storage.setLastCheckInDate(todayStr);
       await storage.setTodayIntention(intentionKey);
       const found = INTENTIONS.find(i => i.key === intentionKey);
@@ -238,7 +240,7 @@ export default function HomeScreen() {
 
   async function handleNightCheckIn(window: string | null) {
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateString();
       await storage.setLastNightCheckInDate(todayStr);
       await storage.setPhoneFreeWindow(window);
       setShowNightCheckInModal(false);
@@ -257,7 +259,7 @@ export default function HomeScreen() {
     const handleAppStateChange = async (nextState: string) => {
       if (nextState === 'active') {
         try {
-          const today = new Date().toISOString().split('T')[0];
+          const today = getLocalDateString();
           
           let widgetCount = 0;
           if (HabitTrackerModule) {
@@ -336,7 +338,7 @@ export default function HomeScreen() {
 
       // Calculate count and limit for all dates in horizontal calendar and logs
       const config = await storage.getPlanConfig();
-      const firstDate = dates.length > 0 ? dates[0] : new Date().toISOString().split('T')[0];
+      const firstDate = dates.length > 0 ? dates[0] : getLocalDateString();
       const firstD = new Date(firstDate);
 
       const statsMap: Record<string, { count: number; limit: number }> = {};
@@ -347,7 +349,7 @@ export default function HomeScreen() {
 
       const allUniqueDates = new Set<string>([
         ...Object.keys(grabsByDate),
-        new Date().toISOString().split('T')[0]
+        getLocalDateString()
       ]);
       daysInMonth.forEach(d => allUniqueDates.add(d.fullDate));
 
@@ -375,7 +377,7 @@ export default function HomeScreen() {
       let streakVal = 0;
       let bestStreakVal = 0;
       let tempStreak = 0;
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateString();
       const sortedDates = Array.from(allUniqueDates).sort();
       const grouped: Record<string, number> = {};
       allGrabs.forEach((g) => { grouped[g.date] = (grouped[g.date] || 0) + 1; });
@@ -395,7 +397,7 @@ export default function HomeScreen() {
       // Current streak (going backwards from today)
       const checkDate = new Date();
       while (true) {
-        const dateStr = checkDate.toISOString().split('T')[0];
+        const dateStr = getLocalDateString(checkDate);
         const dayCount = grouped[dateStr] || 0;
         const dayLimit = statsMap[dateStr]?.limit || 40;
         // If no grabs today yet, skip counting today (don't break streak)
@@ -416,7 +418,7 @@ export default function HomeScreen() {
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = getLocalDateString(d);
         const dayCount = grouped[dateStr] || 0;
         const dayLimit = statsMap[dateStr]?.limit || 40;
         const label = i === 0 ? 'T' : i === 1 ? 'Y' : ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.getDay()];
@@ -490,7 +492,7 @@ export default function HomeScreen() {
 
   async function runCoordinatedModalChecks(date: string) {
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateString();
       const status = await SubscriptionService.getStatus();
       setTrialDays(status.trialDaysRemaining);
       setIsSubscribed(status.isSubscribed);
@@ -615,7 +617,7 @@ export default function HomeScreen() {
       setLog((history) => [grab, ...history]);
       setLastTrigger(trigger);
       setShowTrigger(false);
-      if (selectedDate === new Date().toISOString().split('T')[0]) {
+      if (selectedDate === getLocalDateString()) {
         const notificationPrefs = await storage.getNotificationPreferences();
         if (notificationPrefs.limitAlerts) {
           const previousPct = previousCount / limit;
@@ -687,7 +689,7 @@ export default function HomeScreen() {
     return Math.abs(hash) % TIPS.length;
   };
 
-  const dailyTip = TIPS[getDailyTipIndex(new Date().toISOString().split('T')[0])];
+  const dailyTip = TIPS[getDailyTipIndex(getLocalDateString())];
 
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? '#0A061E' : '#F5F3FF' }}>
@@ -702,6 +704,15 @@ export default function HomeScreen() {
               onShowMotivations={() => setShowDailyTip(true)}
             />
           </Animated.View>
+
+          {todayIntention && selectedDate === getLocalDateString() && (
+            <Animated.View entering={FadeInUp.delay(120).duration(600)} style={[styles.intentionBanner, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.surface, borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderWidth: 1 }]}>
+              <Ionicons name={todayIntention.icon as any} size={16} color={colors.primary} style={{ marginRight: 8 }} />
+              <Text style={[styles.intentionBannerText, { color: colors.textMuted }]}>
+                Today's Goal: <Text style={{ color: colors.text, fontWeight: '600' }}>{todayIntention.label}</Text>
+              </Text>
+            </Animated.View>
+          )}
 
           {!isSubscribed && trialDays <= 0 && (
             <Pressable
@@ -727,7 +738,7 @@ export default function HomeScreen() {
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 onPress={async (e) => {
                   e.stopPropagation();
-                  const today = new Date().toISOString().split('T')[0];
+                  const today = getLocalDateString();
                   await storage.setTrialBannerDismissedDate(today);
                   setShowTrialBanner(false);
                 }}
@@ -767,6 +778,16 @@ export default function HomeScreen() {
 
           {/* StatusRow overrides dynamically with isCalibrating state */}
           <Animated.View entering={FadeInUp.delay(500).duration(600)}>
+            {!isCalibrating && (
+              <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: colors.textMuted, marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' }}>
+                  Your Habit Level
+                </Text>
+                <View style={[styles.levelBadge, { backgroundColor: getLimitLevelColor(limit) }]}>
+                  <Text style={styles.levelBadgeText}>{getLimitLevelLabel(limit)}</Text>
+                </View>
+              </View>
+            )}
             <StatusRow
               statusColor={statusColor}
               statusLabel={statusLabel}
@@ -856,7 +877,7 @@ export default function HomeScreen() {
 
           <Animated.View entering={FadeInUp.delay(600).duration(600)}>
             {/* Persistent Intention Chip */}
-            {todayIntention && selectedDate === new Date().toISOString().split('T')[0] && (
+            {todayIntention && selectedDate === getLocalDateString() && (
               <Animated.View entering={FadeIn.duration(400)} style={[styles.intentionChip, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}>
                 <Ionicons name={todayIntention.icon as any} size={20} color={colors.primary} style={styles.intentionChipIcon} />
                 <View style={styles.intentionChipTexts}>
@@ -869,8 +890,8 @@ export default function HomeScreen() {
               logs={log}
               limit={limit}
               selectedDate={selectedDate}
-              todayIntentionTrigger={selectedDate === new Date().toISOString().split('T')[0] ? todayIntention?.triggerMatch : undefined}
-              title={selectedDate === new Date().toISOString().split('T')[0] ? "Today's log" : `Log for ${new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+              todayIntentionTrigger={selectedDate === getLocalDateString() ? todayIntention?.triggerMatch : undefined}
+              title={selectedDate === getLocalDateString() ? "Today's log" : `Log for ${new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
             />
           </Animated.View>
         </ScrollView>
@@ -1394,6 +1415,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  devPanelButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  levelBadge: { width: '100%', paddingVertical: 12, borderRadius: 8, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
+  levelBadgeText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 },
   trialModalBtnText: {
     color: '#FFFFFF',
     fontSize: 15,
@@ -1415,5 +1442,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     paddingVertical: 4,
+  },
+  intentionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  intentionBannerText: {
+    fontSize: 14,
+    flex: 1,
   },
 });

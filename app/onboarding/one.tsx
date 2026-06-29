@@ -28,6 +28,7 @@ export default function OnboardingOneScreen() {
           <View style={styles.lineActive} />
           <View style={styles.line} />
           <View style={styles.line} />
+          <View style={styles.line} />
         </View>
 
         <View style={[styles.hero, { minHeight: compact ? 240 : 300, marginBottom: compact ? 20 : 32 }]}>
@@ -52,7 +53,7 @@ export default function OnboardingOneScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingHorizontal: horizontalPadding, paddingTop: compact ? 12 : 16, paddingBottom: compact ? 20 : 28 }]}>
-        <Text style={styles.step}>01 of 03</Text>
+        <Text style={styles.step}>01 of 04</Text>
         <Link href="/onboarding/two" style={styles.button}>Next</Link>
       </View>
     </SafeAreaView>

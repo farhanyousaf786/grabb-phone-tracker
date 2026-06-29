@@ -4,12 +4,14 @@ import { useTheme } from '@/context/ThemeContext';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { TRIGGER_EMOJI, TRIGGER_COLORS, TriggerName } from '@/constants/mockData';
+import { getLocalDateString } from '@/utils/date';
 
 interface GrabEntry {
   id?: string;
   timestamp: number;
   date: string;
   trigger?: string;
+  dailyIndex?: number;
 }
 
 type RecordsFilter = 'all' | 'today' | 'week' | 'month';
@@ -29,10 +31,11 @@ const TRIGGER_ICONS: Record<string, string> = {
 export const RecordsLog: React.FC<RecordsLogProps> = ({ grabs }) => {
   const { colors, isDark } = useTheme();
   const [recordsFilter, setRecordsFilter] = useState<RecordsFilter>('all');
+  const [visibleCount, setVisibleCount] = useState(10);
 
   const filteredGrabs = useMemo(() => {
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = getLocalDateString(today);
     const startOfWeek = new Date();
     startOfWeek.setDate(today.getDate() - today.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
@@ -62,9 +65,9 @@ export const RecordsLog: React.FC<RecordsLogProps> = ({ grabs }) => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
 
-    const dStr = d.toISOString().split('T')[0];
-    const todayStr = today.toISOString().split('T')[0];
-    const yestStr = yesterday.toISOString().split('T')[0];
+    const dStr = getLocalDateString(d);
+    const todayStr = getLocalDateString(today);
+    const yestStr = getLocalDateString(yesterday);
 
     if (dStr === todayStr) return 'Today';
     if (dStr === yestStr) return 'Yesterday';
@@ -73,7 +76,8 @@ export const RecordsLog: React.FC<RecordsLogProps> = ({ grabs }) => {
 
   // Group by date
   const grouped = useMemo(() => {
-    const groups: { dateStr: string; dateLabel: string; items: GrabEntry[] }[] = [];
+    const groups: { dateStr: string; dateLabel: string; items: GrabEntry[], total: number }[] = [];
+    
     filteredGrabs.forEach((g) => {
       const dateLabel = formatDate(g.timestamp);
       const dateStr = g.date;
@@ -81,11 +85,38 @@ export const RecordsLog: React.FC<RecordsLogProps> = ({ grabs }) => {
       if (existing) {
         existing.items.push(g);
       } else {
-        groups.push({ dateStr, dateLabel, items: [g] });
+        groups.push({ dateStr, dateLabel, items: [g], total: 0 });
       }
     });
-    return groups;
-  }, [filteredGrabs]);
+
+    groups.forEach(grp => {
+      grp.total = grp.items.length;
+      grp.items.forEach((item, idx) => {
+        item.dailyIndex = grp.total - idx;
+      });
+    });
+
+    let count = 0;
+    const visibleGroups: typeof groups = [];
+
+    for (const grp of groups) {
+      if (count >= visibleCount) break;
+      
+      const remaining = visibleCount - count;
+      if (grp.items.length <= remaining) {
+        visibleGroups.push(grp);
+        count += grp.items.length;
+      } else {
+        visibleGroups.push({
+          ...grp,
+          items: grp.items.slice(0, remaining)
+        });
+        count += remaining;
+      }
+    }
+
+    return visibleGroups;
+  }, [filteredGrabs, visibleCount]);
 
   const filterButtons: { key: RecordsFilter; label: string }[] = [
     { key: 'all', label: 'All Time' },
@@ -110,7 +141,10 @@ export const RecordsLog: React.FC<RecordsLogProps> = ({ grabs }) => {
           return (
             <Pressable
               key={btn.key}
-              onPress={() => setRecordsFilter(btn.key)}
+              onPress={() => {
+                setRecordsFilter(btn.key);
+                setVisibleCount(10);
+              }}
               style={({ pressed }) => [
                 styles.filterBtn,
                 {
@@ -139,7 +173,7 @@ export const RecordsLog: React.FC<RecordsLogProps> = ({ grabs }) => {
               <View style={[styles.dateHeader, { borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
                 <Text style={[styles.dateHeaderText, { color: colors.text }]}>{group.dateLabel}</Text>
                 <Text style={[styles.dateHeaderCount, { color: colors.textMuted }]}>
-                  {group.items.length} grab{group.items.length === 1 ? '' : 's'}
+                  {group.total} grab{group.total === 1 ? '' : 's'}
                 </Text>
               </View>
 
@@ -150,6 +184,8 @@ export const RecordsLog: React.FC<RecordsLogProps> = ({ grabs }) => {
                 const iconName = TRIGGER_ICONS[trigger] || 'help-circle-sharp';
                 const emoji = TRIGGER_EMOJI[trigger as TriggerName] || '❓';
 
+                const isWidget = trigger === 'Widget';
+
                 return (
                   <View
                     key={idx}
@@ -157,6 +193,7 @@ export const RecordsLog: React.FC<RecordsLogProps> = ({ grabs }) => {
                       styles.entryRow,
                       idx === group.items.length - 1 && styles.entryRowLast,
                       { borderBottomColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' },
+                      isWidget && { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.08)' }
                     ]}
                   >
                     <View style={[styles.entryTimeCell, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
@@ -164,22 +201,30 @@ export const RecordsLog: React.FC<RecordsLogProps> = ({ grabs }) => {
                     </View>
 
                     <View style={styles.entryTriggerCell}>
-                      <View style={[styles.triggerIconFrame, { backgroundColor: triggerColor.bg + '1A' }]}>
+                      <View style={[styles.triggerIconFrame, { backgroundColor: triggerColor.bg + (isWidget ? '33' : '1A') }]}>
                         <Ionicons name={iconName as any} size={12} color={triggerColor.color} />
                       </View>
-                      <Text style={[styles.triggerName, { color: colors.text }]}>
-                        {emoji} {trigger}
+                      <Text style={[styles.triggerName, { color: isWidget ? triggerColor.color : colors.text, fontWeight: isWidget ? '600' : '500' }]}>
+                        {emoji} {isWidget ? 'Needs label' : trigger}
                       </Text>
                     </View>
 
                     <View style={styles.entryCountCell}>
-                      <Text style={[styles.entryCountText, { color: colors.textMuted }]}>#{group.items.length - idx}</Text>
+                      <Text style={[styles.entryCountText, { color: colors.textMuted }]}>#{item.dailyIndex}</Text>
                     </View>
                   </View>
                 );
               })}
             </View>
           ))}
+          {visibleCount < filteredGrabs.length && (
+            <Pressable
+              style={[styles.loadMoreBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
+              onPress={() => setVisibleCount((prev) => prev + 10)}
+            >
+              <Text style={[styles.loadMoreText, { color: colors.text }]}>Load More</Text>
+            </Pressable>
+          )}
         </View>
       )}
     </Animated.View>
@@ -300,6 +345,17 @@ const styles = StyleSheet.create({
   },
   entryCountText: {
     fontSize: 9.5,
+    fontWeight: '700',
+  },
+  loadMoreBtn: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    marginTop: 12,
+  },
+  loadMoreText: {
+    fontSize: 12,
     fontWeight: '700',
   },
 });

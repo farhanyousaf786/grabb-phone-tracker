@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
+import { getLimitLevelLabel, getLimitLevelColor } from '@/utils/level';
 
 interface LimitModifierProps {
   limit: number;
@@ -27,8 +28,26 @@ export const LimitModifier: React.FC<LimitModifierProps> = ({
       </Animated.Text>
 
       <Animated.View entering={FadeInUp.delay(400)} style={[styles.card, { backgroundColor: colors.surface, borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
-        <Text style={[styles.sectionLabel, { color: colors.text }]}>Daily grab Ceiling</Text>
-        <Text style={[styles.muted, { color: colors.textMuted }]}>Adjust daily limit constraints. Roadmap updates automatically.</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={[styles.sectionLabel, { color: colors.text, marginBottom: 0, marginRight: 8 }]}>Daily grab Ceiling</Text>
+              <Pressable onPress={() => {
+                Alert.alert(
+                  "Level Ranges",
+                  "1-99: Light awareness\n100-199: Moderate habit\n200-299: Strong habit\n300-399: Heavy habit\n400+: Compulsive habit",
+                  [{ text: "Got it" }]
+                );
+              }} hitSlop={10}>
+                <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '700' }}>Info</Text>
+              </Pressable>
+            </View>
+            <Text style={[styles.muted, { color: colors.textMuted }]}>Adjust daily limit constraints. Roadmap updates automatically.</Text>
+          </View>
+          <View style={[styles.levelBadge, { backgroundColor: getLimitLevelColor(limit), marginTop: 0 }]}>
+            <Text style={styles.levelBadgeText}>{getLimitLevelLabel(limit)}</Text>
+          </View>
+        </View>
         
         <View style={styles.limitRow}>
           <Pressable 
@@ -45,7 +64,9 @@ export const LimitModifier: React.FC<LimitModifierProps> = ({
             <Ionicons name="remove-sharp" size={20} color={colors.text} />
           </Pressable>
           
-          <Text style={[styles.limitValue, { color: colors.text }]}>{limit}</Text>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[styles.limitValue, { color: colors.text, flex: 0 }]}>{limit}</Text>
+          </View>
           
           <Pressable 
             style={({ pressed }) => [
@@ -97,7 +118,9 @@ const styles = StyleSheet.create({
   muted: { fontSize: 11.5, marginBottom: 18, fontWeight: '600', lineHeight: 16 },
   limitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
   limitButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  limitValue: { flex: 1, textAlign: 'center', fontSize: 34, fontWeight: '900', letterSpacing: -0.5 },
+  limitValue: { flex: 1, textAlign: 'center', fontSize: 38, fontWeight: '900', letterSpacing: -1 },
+  levelBadge: { marginTop: 8, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 100, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
+  levelBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
   saveContainer: {
     marginTop: 18,
     width: '100%',

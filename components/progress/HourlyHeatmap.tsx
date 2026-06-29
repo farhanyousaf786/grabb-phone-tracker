@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { getLocalDateString } from '@/utils/date';
 
 interface GrabEntry {
   timestamp: number;
@@ -75,7 +76,7 @@ export const HourlyHeatmap: React.FC<HourlyHeatmapProps> = ({
     for (let i = 0; i < diffDays; i++) {
       const curr = new Date(startDate);
       curr.setDate(startDate.getDate() + i);
-      const dateStr = curr.toISOString().split('T')[0];
+      const dateStr = getLocalDateString(curr);
       dayList.push(dateStr);
       dayLabels.push(
         curr.toLocaleDateString('en-US', { weekday: 'narrow', month: 'numeric', day: 'numeric' })
@@ -88,7 +89,7 @@ export const HourlyHeatmap: React.FC<HourlyHeatmapProps> = ({
 
     grabs.forEach((g) => {
       const gDate = new Date(g.timestamp);
-      const dateStr = gDate.toISOString().split('T')[0];
+      const dateStr = getLocalDateString(gDate);
       const dayIdx = dayList.indexOf(dateStr);
       if (dayIdx !== -1) {
         const hour = gDate.getHours();

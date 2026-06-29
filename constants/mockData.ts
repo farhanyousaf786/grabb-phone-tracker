@@ -27,7 +27,7 @@ export const TIPS = [
   { icon: '🎖', title: 'Celebrate the silence', body: "When your phone doesn't buzz for an hour, don't worry about what you're missing. Enjoy the focus you're gaining." },
 ];
 
-export const TRIGGERS = ['Habit', 'Anxious', 'Boredom', 'Notif', 'Avoidance'] as const;
+export const TRIGGERS = ['Habit', 'Anxious', 'Boredom', 'Notif', 'Avoidance', 'Widget'] as const;
 
 export const TRIGGER_COLORS = {
   Habit:     { bg: '#F0F7FF', color: '#5588CC' },
@@ -35,6 +35,7 @@ export const TRIGGER_COLORS = {
   Boredom:   { bg: '#F5F0FF', color: '#8855CC' },
   Notif:     { bg: '#FFFBF0', color: '#CC8833' },
   Avoidance: { bg: '#F0FFF8', color: '#33AA77' },
+  Widget:    { bg: '#FFF0F0', color: '#EF4444' }, // Red to indicate it needs attention
 };
 
 export const TRIGGER_EMOJI = {
@@ -43,6 +44,7 @@ export const TRIGGER_EMOJI = {
   Boredom:   '😑',
   Notif:     '🔔',
   Avoidance: '🙈',
+  Widget:    '⚠️',
 };
 
 // Each intention maps to the trigger it most closely relates to
