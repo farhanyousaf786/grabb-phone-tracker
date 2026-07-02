@@ -100,10 +100,6 @@ export const TriggerModal: React.FC<TriggerModalProps> = ({ visible, title, subt
               </Pressable>
             ))}
           </View>
-          
-          <Pressable style={styles.skipButton} onPress={() => onSelect('Habit')}>
-            <Text style={[styles.triggerSkip, { color: colors.primary }]}>Log Directly</Text>
-          </Pressable>
         </Animated.View>
       </Animated.View>
     </Modal>

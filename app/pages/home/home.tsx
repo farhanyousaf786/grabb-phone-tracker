@@ -903,11 +903,14 @@ export default function HomeScreen() {
             subtitle={pendingWidgetGrabs > 0 ? (
               <Text style={{ textAlign: 'center' }}>
                 You logged {pendingWidgetGrabs} grab{pendingWidgetGrabs > 1 ? 's' : ''} from the widget.{"\n"}
-                <Text style={{ fontWeight: 'bold' }}>({pendingWidgetGrabs} left to log)</Text>{"\n"}
+                <Text style={{ fontWeight: 'bold', fontSize: 16, color: colors.primary, marginVertical: 4 }}>
+                  ({pendingWidgetGrabs} left to log)
+                </Text>{"\n"}
                 What triggered {pendingWidgetGrabs > 1 ? 'them' : 'it'}?
               </Text>
             ) : undefined}
             onClose={async () => {
+              if (pendingWidgetGrabs > 0) {
                 // Auto-log as 'Widget' if they cancel, so they aren't trapped
                 const today = getLocalDateString();
                 for (let i = 0; i < pendingWidgetGrabs; i++) {
