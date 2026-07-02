@@ -58,7 +58,8 @@ struct DecrementIntent: AppIntent {
 private func getTodayString() -> String {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd"
-    formatter.timeZone = TimeZone(abbreviation: "UTC")
+    // Use the user's local timezone instead of UTC to fix the midnight reset bug in the widget
+    formatter.timeZone = TimeZone.current
     return formatter.string(from: Date())
 }
 

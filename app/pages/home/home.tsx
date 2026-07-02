@@ -38,6 +38,7 @@ export default function HomeScreen() {
   // Basic states
   const [count, setCount] = useState(0);
   const [showTrigger, setShowTrigger] = useState(false);
+  const [pendingWidgetGrabs, setPendingWidgetGrabs] = useState(0);
   const [showReview, setShowReview] = useState(false);
   const [lastTrigger, setLastTrigger] = useState<TriggerName | null>(null);
   const [log, setLog] = useState<GrabLog[]>([]);
@@ -274,9 +275,8 @@ export default function HomeScreen() {
 
           if (widgetCount > appCount) {
             const diff = widgetCount - appCount;
-            for (let i = 0; i < diff; i++) {
-              await storage.addGrab('Widget', today);
-            }
+            // Queue them up for the user to select reasons
+            setPendingWidgetGrabs(diff);
             loadData(today);
           } else if (widgetCount < appCount) {
             const diff = appCount - widgetCount;
@@ -896,11 +896,43 @@ export default function HomeScreen() {
           </Animated.View>
         </ScrollView>
 
-        {showTrigger && (
+        {(showTrigger || pendingWidgetGrabs > 0) && (
           <TriggerModal
-            visible={showTrigger}
-            onSelect={logGrab}
-            onClose={() => setShowTrigger(false)}
+            visible={showTrigger || pendingWidgetGrabs > 0}
+            title={pendingWidgetGrabs > 0 ? "OUTSIDE GRABS" : undefined}
+            subtitle={pendingWidgetGrabs > 0 ? (
+              <Text style={{ textAlign: 'center' }}>
+                You logged {pendingWidgetGrabs} grab{pendingWidgetGrabs > 1 ? 's' : ''} from the widget.{"\n"}
+                <Text style={{ fontWeight: 'bold' }}>({pendingWidgetGrabs} left to log)</Text>{"\n"}
+                What triggered {pendingWidgetGrabs > 1 ? 'them' : 'it'}?
+              </Text>
+            ) : undefined}
+            onClose={async () => {
+                // Auto-log as 'Widget' if they cancel, so they aren't trapped
+                const today = getLocalDateString();
+                for (let i = 0; i < pendingWidgetGrabs; i++) {
+                  await storage.addGrab('Widget', today);
+                }
+                setPendingWidgetGrabs(0);
+                loadData(today);
+              } else {
+                setShowTrigger(false);
+              }
+            }}
+            onSelect={async (trigger) => {
+              if (pendingWidgetGrabs > 0) {
+                const today = getLocalDateString();
+                await storage.addGrab(trigger, today);
+                const newPending = pendingWidgetGrabs - 1;
+                setPendingWidgetGrabs(newPending);
+                if (newPending === 0) {
+                  loadData(today);
+                }
+              } else {
+                setShowTrigger(false);
+                await logGrab(trigger);
+              }
+            }}
           />
         )}
 

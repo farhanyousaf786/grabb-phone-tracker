@@ -5,6 +5,8 @@ import { TRIGGERS, TRIGGER_EMOJI, TriggerName } from '@/constants/mockData';
 
 interface TriggerModalProps {
   visible: boolean;
+  title?: string;
+  subtitle?: React.ReactNode | string;
   onSelect: (trigger: TriggerName) => void;
   onClose: () => void;
 }
@@ -22,7 +24,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 
-export const TriggerModal: React.FC<TriggerModalProps> = ({ visible, onSelect, onClose }) => {
+export const TriggerModal: React.FC<TriggerModalProps> = ({ visible, title, subtitle, onSelect, onClose }) => {
   const { colors, isDark } = useTheme();
   const [shouldRender, setShouldRender] = React.useState(visible);
 
@@ -78,8 +80,8 @@ export const TriggerModal: React.FC<TriggerModalProps> = ({ visible, onSelect, o
             <Ionicons name="help-sharp" size={24} color="#FFFFFF" />
           </Animated.View>
 
-          <Text style={[styles.triggerHeading, { color: colors.text }]}>What triggered this?</Text>
-          <Text style={[styles.triggerSubheading, { color: colors.textMuted }]}>Select the pattern that pulled you in.</Text>
+          <Text style={[styles.triggerHeading, { color: colors.text }]}>{title || 'What triggered this?'}</Text>
+          <Text style={[styles.triggerSubheading, { color: colors.textMuted }]}>{subtitle || 'Select the pattern that pulled you in.'}</Text>
           
           <View style={styles.triggerGrid}>
             {TRIGGERS.map((trigger) => (
